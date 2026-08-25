@@ -4,17 +4,15 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+## [0.1.0-alpha.1] - 2026-08-26
+
 ### Added
 
 - Qiu language-pack manifest validation, discovery, routing and local import foundation.
 - Standard read-only bundled English ↔ Chinese language packs.
 - Reproducible Developer ID signing, DMG creation and Apple notarization workflow.
 - Privacy-safe application identifier and public Git author metadata.
-
-## [0.1.0] - 2026-08-26
-
-### Added
-
+- Bilingual project README with origin story, benchmark visualization, usage guide, and roadmap.
 - Native macOS menu bar application.
 - Configurable selection trigger and permission status UI.
 - Popup-first selection translation.
