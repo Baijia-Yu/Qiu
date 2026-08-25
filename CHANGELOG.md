@@ -6,7 +6,18 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Fixed
 
-- Preserve mathematical symbols, Greek letters, emoji, and other tokenizer-unknown Unicode characters in offline translation results.
+- Preserve mathematical symbols, Greek letters, superscripts, emoji, and other tokenizer-unknown Unicode characters in offline translation results.
+- Avoid rejecting an entire offline translation just because the selected text contains a character outside the OPUS-MT tokenizer vocabulary.
+- Restore protected characters after inference and retain them with a fallback when the model consumes a placeholder.
+
+### Changed
+
+- Detect unknown character spans with one SentencePiece pass per request, avoiding per-character tokenizer calls on long selections.
+- Document Unicode preservation in the Chinese and English feature lists.
+
+### Added
+
+- Added English → Chinese and Chinese → English regression coverage using `μ`, `∈`, `²`, `≤`, `Δ`, `≈`, and emoji.
 
 ## [0.1.0-alpha.2] - 2026-08-26
 
