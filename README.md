@@ -56,6 +56,7 @@ Qiu 起源于一次没有网络的飞行。
 | Qiu 官方语言包下载 | 🚧 计划中 | 用户自行选择需要下载的语言 |
 | 更多语言自动识别 | 🚧 计划中 | 从中英判断扩展到多语言识别 |
 | 自定义模型部署 | 🚧 计划中 | 加载兼容语言包目录，后续支持可选本地大模型后端 |
+| 翻译个体适应 | 🚧 计划中 | 基于用户主动确认的术语、译名、纠错与风格偏好进行本地适配，可查看、编辑和清除 |
 
 ### 现在能做什么
 
@@ -132,6 +133,7 @@ Control / Option / custom trigger
 - Qiu 不保存翻译历史。
 - 当前模型随 App 或本地语言包提供。
 - 未来下载语言包时只下载模型文件，不会上传待翻译文本。
+- 未来的个体适应功能只记录用户主动确认的术语与偏好，不把完整翻译历史作为训练数据；适配数据保留在本机并可随时查看、编辑、导出或清除。
 
 Qiu 需要辅助功能和输入监控权限来识别全局触发及读取其他 App 中的选区。这些权限不会改变“翻译在本机完成”的原则。
 
@@ -149,6 +151,7 @@ Qiu 需要辅助功能和输入监控权限来识别全局触发及读取其他 
 - [ ] 高级模型管理：查看、加载、移除和切换本地模型
 - [ ] 自定义 CTranslate2 / Qiu Language Pack 目录导入
 - [ ] 可选的本地大模型翻译后端
+- [ ] 本地翻译个体适应：术语表、固定译名、领域风格与用户纠错学习
 - [ ] Intel / Apple Silicon Universal 发布包
 - [ ] 更完整的 Safari、Chrome、PDF 与编辑器兼容性矩阵
 
@@ -209,6 +212,7 @@ That became Qiu: **offline translation that feels like a system capability while
 | Curated Qiu language-pack downloads | 🚧 Planned | Download only the languages a user needs |
 | Broader automatic language detection | 🚧 Planned | Extend beyond the current English/Chinese decision |
 | Custom model deployment | 🚧 Planned | Load compatible package directories, followed by an optional local LLM backend |
+| Personalized translation adaptation | 🚧 Planned | Locally adapt to user-confirmed terminology, preferred names, corrections, and style; inspectable, editable, and removable |
 
 ### What it does today
 
@@ -285,6 +289,7 @@ Control / Option / custom trigger
 - Qiu does not save translation history.
 - Models are bundled with the app or installed as local language packs.
 - Future language-pack downloads will fetch model files only; translation input will not be part of that traffic.
+- Future personalization will store only preferences and terminology explicitly confirmed by the user, not complete translation history as training data. Adaptation data will remain local and can be inspected, edited, exported, or cleared.
 
 Qiu needs Accessibility and Input Monitoring to recognize the global trigger and read selections from other apps. Those permissions do not change the local-only inference design.
 
@@ -302,6 +307,7 @@ Qiu needs Accessibility and Input Monitoring to recognize the global trigger and
 - [ ] Advanced model management: inspect, load, remove, and switch local models
 - [ ] Custom CTranslate2 / Qiu Language Pack directory import
 - [ ] Optional local LLM translation backend
+- [ ] On-device personalization for terminology, preferred names, domain style, and user-confirmed corrections
 - [ ] Universal Intel / Apple Silicon release
 - [ ] Broader Safari, Chrome, PDF, and editor compatibility matrix
 

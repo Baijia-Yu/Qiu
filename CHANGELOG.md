@@ -4,6 +4,10 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+### Changed
+
+- Documented the planned on-device translation personalization roadmap and its user-controlled privacy boundaries.
+
 ## [0.1.0-alpha.3] - 2026-08-26
 
 ### Fixed
