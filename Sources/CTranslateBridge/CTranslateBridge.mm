@@ -1,6 +1,8 @@
 #include "CTranslateBridge.h"
 
+#include <algorithm>
 #include <cstdlib>
+#include <cctype>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -24,10 +26,7 @@ std::string replace_all(std::string value, const std::string &from, const std::s
   return value;
 }
 
-// The OPUS-MT tokenizers emit <unk> for several common maths glyphs. One unknown
-// source token can make the decoder produce an entire unknown sequence, so rewrite
-// those glyphs to equivalent words before retrying inference.
-std::string normalize_academic_unicode(const std::string &input) {
+const std::vector<std::pair<std::string, std::string>> &academic_unicode_replacements() {
   static const std::vector<std::pair<std::string, std::string>> replacements = {
       {"μ", "mu"}, {"µ", "mu"}, {"α", "alpha"}, {"β", "beta"},
       {"γ", "gamma"}, {"δ", "delta"}, {"ε", "epsilon"}, {"θ", "theta"},
@@ -46,9 +45,15 @@ std::string normalize_academic_unicode(const std::string &input) {
       {"⁵", "5"}, {"⁶", "6"}, {"⁷", "7"}, {"⁸", "8"}, {"⁹", "9"},
       {"“", "\""}, {"”", "\""}, {"‘", "'"}, {"’", "'"},
   };
+  return replacements;
+}
 
+// The OPUS-MT tokenizers emit <unk> for several common maths glyphs. One unknown
+// source token can make the decoder produce an entire unknown sequence, so rewrite
+// those glyphs to equivalent words before retrying inference.
+std::string normalize_academic_unicode(const std::string &input) {
   std::string normalized = input;
-  for (const auto &[from, to] : replacements) {
+  for (const auto &[from, to] : academic_unicode_replacements()) {
     normalized = replace_all(std::move(normalized), from, to);
   }
   return normalized;
@@ -68,6 +73,118 @@ bool contains_unknown_piece(const std::vector<std::string> &tokens) {
     if (token == "<unk>") return true;
   }
   return false;
+}
+
+size_t utf8_character_length(const unsigned char first_byte) {
+  if ((first_byte & 0x80) == 0) return 1;
+  if ((first_byte & 0xE0) == 0xC0) return 2;
+  if ((first_byte & 0xF0) == 0xE0) return 3;
+  if ((first_byte & 0xF8) == 0xF0) return 4;
+  return 1;
+}
+
+bool is_academic_special_character(const std::string &character) {
+  for (const auto &[special, _] : academic_unicode_replacements()) {
+    if (special == character) return true;
+  }
+  return false;
+}
+
+struct ProtectedCharacter {
+  std::string marker;
+  std::string original;
+};
+
+struct ProtectedInput {
+  std::string text;
+  std::vector<ProtectedCharacter> characters;
+};
+
+ProtectedInput protect_special_characters(
+    const std::string &input,
+    sentencepiece::SentencePieceProcessor &source_sp) {
+  ProtectedInput result;
+  result.text.reserve(input.size());
+
+  std::vector<std::pair<size_t, size_t>> unknown_ranges;
+  const auto encoded = source_sp.EncodeAsImmutableProto(input);
+  for (const auto &piece : encoded.pieces()) {
+    if (piece.id() == static_cast<uint32_t>(source_sp.unk_id())) {
+      unknown_ranges.emplace_back(piece.begin(), piece.end());
+    }
+  }
+
+  for (size_t offset = 0; offset < input.size();) {
+    const size_t requested_length = utf8_character_length(
+        static_cast<unsigned char>(input[offset]));
+    const size_t length = std::min(requested_length, input.size() - offset);
+    const std::string character = input.substr(offset, length);
+    const size_t character_end = offset + length;
+
+    const bool tokenizer_unknown = std::any_of(
+        unknown_ranges.begin(), unknown_ranges.end(),
+        [offset, character_end](const auto &range) {
+          return offset < range.second && character_end > range.first;
+        });
+
+    const bool should_protect = is_academic_special_character(character)
+        || tokenizer_unknown;
+    if (!should_protect) {
+      result.text += character;
+    } else {
+      const std::string marker = "ZXQ" + std::to_string(result.characters.size()) + "QXZ";
+      result.text += marker;
+      result.characters.push_back({marker, character});
+    }
+    offset = character_end;
+  }
+  return result;
+}
+
+bool ascii_equal_ignoring_case(const char left, const char right) {
+  return std::tolower(static_cast<unsigned char>(left))
+      == std::tolower(static_cast<unsigned char>(right));
+}
+
+bool restore_marker(std::string &output, const ProtectedCharacter &protected_character) {
+  for (size_t start = 0; start < output.size(); ++start) {
+    size_t output_index = start;
+    size_t marker_index = 0;
+    while (output_index < output.size() && marker_index < protected_character.marker.size()) {
+      if (std::isspace(static_cast<unsigned char>(output[output_index]))) {
+        ++output_index;
+        continue;
+      }
+      if (!ascii_equal_ignoring_case(
+              output[output_index], protected_character.marker[marker_index])) {
+        break;
+      }
+      ++output_index;
+      ++marker_index;
+    }
+    if (marker_index == protected_character.marker.size()) {
+      output.replace(start, output_index - start, protected_character.original);
+      return true;
+    }
+  }
+  return false;
+}
+
+std::string restore_special_characters(
+    std::string output,
+    const std::vector<ProtectedCharacter> &protected_characters) {
+  output = replace_all(std::move(output), "⁇", "");
+  std::vector<std::string> missing;
+  for (const auto &protected_character : protected_characters) {
+    if (!restore_marker(output, protected_character)) {
+      missing.push_back(protected_character.original);
+    }
+  }
+  if (!missing.empty()) {
+    output += " ";
+    for (const auto &character : missing) output += character;
+  }
+  return output;
 }
 
 struct TranslationRuntime {
@@ -169,12 +286,15 @@ struct TranslationRuntime {
   }
 
   std::string translate(const std::string &input, const Direction direction) {
-    const auto normalized = normalize_academic_unicode(input);
+    const auto protected_input = protect_special_characters(input, *source_sp);
+    const auto normalized = normalize_academic_unicode(protected_input.text);
     std::vector<std::string> original_tokens;
-    const auto encode_status = source_sp->Encode(input, &original_tokens);
+    const auto encode_status = source_sp->Encode(protected_input.text, &original_tokens);
     if (!encode_status.ok()) throw std::runtime_error(encode_status.ToString());
 
-    std::string prepared = contains_unknown_piece(original_tokens) ? normalized : input;
+    std::string prepared = contains_unknown_piece(original_tokens)
+        ? normalized
+        : protected_input.text;
     if (direction == EnToZh) {
       std::vector<std::string> prepared_tokens;
       const auto prepared_status = source_sp->Encode(prepared, &prepared_tokens);
@@ -183,11 +303,19 @@ struct TranslationRuntime {
     }
 
     auto attempt = translate_once(prepared);
-    if (!attempt.source_has_unknown && !attempt.output_has_unknown) return attempt.output;
+    if (!attempt.source_has_unknown
+        && (!attempt.output_has_unknown || !protected_input.characters.empty())) {
+      return restore_special_characters(
+          std::move(attempt.output), protected_input.characters);
+    }
 
     if (prepared != normalized) {
       attempt = translate_once(normalized);
-      if (!attempt.source_has_unknown && !attempt.output_has_unknown) return attempt.output;
+      if (!attempt.source_has_unknown
+          && (!attempt.output_has_unknown || !protected_input.characters.empty())) {
+        return restore_special_characters(
+            std::move(attempt.output), protected_input.characters);
+      }
     }
 
     throw std::runtime_error("此离线模型暂时无法解析其中的特殊字符；请简化公式后重试。");

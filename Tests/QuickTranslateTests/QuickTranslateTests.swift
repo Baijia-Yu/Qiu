@@ -235,3 +235,27 @@ private func runDitto(arguments: [String]) throws {
     #expect(translation.unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) }, "Unexpected output: \(translation)")
     await engine.unload()
 }
+
+@Test func preservesSpecialCharactersInScientificTranslation() async throws {
+    let engine = LocalTranslationEngine()
+    let translation = try await engine.translate(
+        "For μ(t) ∈ I, x² ≤ 1 and ΔE ≈ 0. 😀",
+        from: .english,
+        to: .chinese
+    )
+    for symbol in ["μ", "∈", "²", "≤", "Δ", "≈", "😀"] {
+        #expect(translation.contains(symbol), "Missing \(symbol) in: \(translation)")
+    }
+    #expect(!translation.contains("⁇"), "Unexpected output: \(translation)")
+
+    let reverse = try await engine.translate(
+        "当 μ(t) ∈ I 时，保持 x² ≤ 1。😀",
+        from: .chinese,
+        to: .english
+    )
+    for symbol in ["μ", "∈", "²", "≤", "😀"] {
+        #expect(reverse.contains(symbol), "Missing \(symbol) in: \(reverse)")
+    }
+    #expect(!reverse.contains("⁇"), "Unexpected output: \(reverse)")
+    await engine.unload()
+}

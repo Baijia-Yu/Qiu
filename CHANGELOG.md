@@ -4,6 +4,10 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve mathematical symbols, Greek letters, emoji, and other tokenizer-unknown Unicode characters in offline translation results.
+
 ## [0.1.0-alpha.2] - 2026-08-26
 
 ### Changed

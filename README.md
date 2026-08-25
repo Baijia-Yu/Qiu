@@ -61,6 +61,7 @@ Qiu 起源于一次没有网络的飞行。
 
 - 完全离线的英文 → 中文、中文 → 英文翻译
 - 自动识别中英文并选择对应翻译方向
+- 保留公式中的数学符号、希腊字母、Emoji 和模型词表外的 Unicode 字符
 - 按键、组合键或鼠标侧键触发
 - Popup 优先：松开鼠标后先显示，再异步读取选区和翻译
 - 根据光标与屏幕位置自动放置翻译窗口
@@ -213,6 +214,7 @@ That became Qiu: **offline translation that feels like a system capability while
 
 - Fully offline English → Chinese and Chinese → English translation
 - Automatic English/Chinese detection and translation-direction selection
+- Preserves mathematical symbols, Greek letters, emoji, and tokenizer-unknown Unicode
 - Keyboard, modifier-only, and mouse-button triggers
 - Popup-first interaction with asynchronous selection reading and inference
 - Cursor- and screen-aware popup placement
