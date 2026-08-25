@@ -28,6 +28,8 @@ The following command produces an ad-hoc signed image whose filename ends in `-d
 ./Tools/build_dmg.sh
 ```
 
+Set `QIU_RELEASE_SUFFIX` when a prerelease needs a distinct artifact name, for example `QIU_RELEASE_SUFFIX=alpha.2 ./Tools/build_dmg.sh`.
+
 ## Create the public release artifact
 
 Use the exact identity printed by `security find-identity`:

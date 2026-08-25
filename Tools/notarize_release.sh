@@ -4,9 +4,14 @@ set -euo pipefail
 project_root=$(cd "$(dirname "$0")/.." && pwd)
 info_plist="$project_root/Distribution/Info.plist"
 version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info_plist")
+release_suffix=${QIU_RELEASE_SUFFIX:-}
+release_label=$version
+if [[ -n "$release_suffix" ]]; then
+  release_label="$version-$release_suffix"
+fi
 architecture=$(uname -m)
 app_path="$project_root/Distribution/Qiu.app"
-dmg_path="$project_root/Distribution/Qiu-$version-macOS-$architecture.dmg"
+dmg_path="$project_root/Distribution/Qiu-$release_label-macOS-$architecture.dmg"
 
 if [[ -z "${QIU_SIGNING_IDENTITY:-}" ]]; then
   echo "QIU_SIGNING_IDENTITY must be a Developer ID Application identity." >&2

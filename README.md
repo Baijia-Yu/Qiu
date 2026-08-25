@@ -73,7 +73,7 @@ Qiu 起源于一次没有网络的飞行。
 ### 下载与使用
 
 > [!IMPORTANT]
-> 当前 `v0.1.0-alpha.1` 是 Apple Silicon 测试版，尚未使用 Apple Developer ID 签名和公证。macOS 可能阻止首次打开。请只从本仓库的 Releases 下载，并核对 Release 中的说明。
+> 当前 `v0.1.0-alpha.2` 是 Apple Silicon 测试版，尚未使用 Apple Developer ID 签名和公证。macOS 可能阻止首次打开。请只从本仓库的 Releases 下载，并核对 Release 中的说明。
 
 1. 从 [Releases](https://github.com/Baijia-Yu/Qiu/releases) 下载最新 DMG。
 2. 打开 DMG，把 Qiu 拖入 Applications。
@@ -143,7 +143,6 @@ Qiu 需要辅助功能和输入监控权限来识别全局触发及读取其他 
 - [x] Popup 定位、异步选区与性能埋点
 - [x] INT8 原生推理、懒加载与内存生命周期验证
 - [x] 本地语言包清单、校验和导入基础能力
-- [ ] Apple Developer ID 签名与公证的稳定版本
 - [ ] Qiu 官方审核语言包目录与 App 内下载
 - [ ] 更多语言对与轻量自动语言识别
 - [ ] 高级模型管理：查看、加载、移除和切换本地模型
@@ -226,7 +225,7 @@ That became Qiu: **offline translation that feels like a system capability while
 ### Download and use
 
 > [!IMPORTANT]
-> `v0.1.0-alpha.1` is an Apple Silicon test build. It is not yet signed with an Apple Developer ID or notarized, so macOS may block the first launch. Download it only from this repository's Releases page and read the release notes.
+> `v0.1.0-alpha.2` is an Apple Silicon test build. It is not yet signed with an Apple Developer ID or notarized, so macOS may block the first launch. Download it only from this repository's Releases page and read the release notes.
 
 1. Download the latest DMG from [Releases](https://github.com/Baijia-Yu/Qiu/releases).
 2. Open it and drag Qiu into Applications.
@@ -296,7 +295,6 @@ Qiu needs Accessibility and Input Monitoring to recognize the global trigger and
 - [x] Popup placement, asynchronous selection, and performance instrumentation
 - [x] Native INT8 inference, lazy loading, and memory lifecycle validation
 - [x] Local language-pack manifest, validation, and import foundations
-- [ ] Stable Developer ID-signed and notarized release
 - [ ] Curated Qiu language-pack catalogue with in-app downloads
 - [ ] More language pairs and lightweight automatic language detection
 - [ ] Advanced model management: inspect, load, remove, and switch local models
