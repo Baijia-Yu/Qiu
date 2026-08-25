@@ -35,9 +35,32 @@ Qiu 起源于一次没有网络的飞行。
 
 这就是 Qiu：**让离线翻译像系统能力一样自然，同时尽量尊重电量、内存和注意力。**
 
+### Qiu 的特点
+
+- **自定义触发划词**：可以录制普通按键、Command / Control / Option / Shift 组合，也支持系统能够识别的鼠标侧键或宏按键。按住触发、拖动选择文字、松开鼠标即可翻译。
+- **自动判断中英方向**：当前版本会用几乎零开销的 Unicode 规则识别中文与英文，并自动选择 `zh → en` 或 `en → zh` 模型。
+- **为翻译而生的小模型**：使用专用 OPUS-MT INT8 模型，不需要为了翻译一句话加载通用大模型。
+- **模型按需加载**：只加载当前方向需要的语言包，warm 时复用，空闲时可以卸载。
+- **可扩展语言包架构**：Qiu 已能发现、验证、选择版本并路由本地语言包，为后续模型下载与部署保留统一接口。
+- **Popup 跟着选区走**：翻译窗口根据光标和屏幕边缘自动寻找自然位置，不打断当前阅读。
+
+#### 模型能力状态
+
+| 能力 | 状态 | 说明 |
+|---|---|---|
+| 内置英文 ↔ 中文模型 | ✅ 已完成 | 完全离线，按方向懒加载 |
+| 中英语言方向自动识别 | ✅ 已完成 | 轻量 Unicode heuristic，无额外识别模型 |
+| 已安装语言包自动路由 | ✅ 已完成 | 根据语言对选择本地可用版本 |
+| 语言包校验与本地导入 | 🧪 后端已完成 | UI 与完整用户流程仍在完善 |
+| 模型选择与管理界面 | 🚧 计划中 | 查看、切换、加载、卸载与删除模型 |
+| Qiu 官方语言包下载 | 🚧 计划中 | 用户自行选择需要下载的语言 |
+| 更多语言自动识别 | 🚧 计划中 | 从中英判断扩展到多语言识别 |
+| 自定义模型部署 | 🚧 计划中 | 加载兼容语言包目录，后续支持可选本地大模型后端 |
+
 ### 现在能做什么
 
 - 完全离线的英文 → 中文、中文 → 英文翻译
+- 自动识别中英文并选择对应翻译方向
 - 按键、组合键或鼠标侧键触发
 - Popup 优先：松开鼠标后先显示，再异步读取选区和翻译
 - 根据光标与屏幕位置自动放置翻译窗口
@@ -115,6 +138,7 @@ Qiu 需要辅助功能和输入监控权限来识别全局触发及读取其他 
 
 - [x] 原生 macOS Menu Bar App
 - [x] 英中双向本地翻译
+- [x] 中英语言方向自动识别与语言包路由
 - [x] 自定义键盘与鼠标触发
 - [x] Popup 定位、异步选区与性能埋点
 - [x] INT8 原生推理、懒加载与内存生命周期验证
@@ -164,9 +188,32 @@ I wanted something smaller and more direct: hold a trigger, select text, release
 
 That became Qiu: **offline translation that feels like a system capability while staying considerate of battery, memory, and attention.**
 
+### What makes Qiu different
+
+- **A custom hold-and-select trigger**: record a regular key, any Command / Control / Option / Shift combination, or a mouse side/macro button recognized by macOS. Hold it, drag to select text, and release the mouse to translate.
+- **Automatic English/Chinese direction detection**: a near-zero-cost Unicode heuristic selects `zh → en` or `en → zh` without loading a separate detection model.
+- **Small models built for translation**: dedicated OPUS-MT INT8 models avoid waking a general-purpose LLM for a sentence.
+- **On-demand model loading**: Qiu loads only the language pack required for the current direction, reuses it while warm, and can unload it when idle.
+- **An extensible language-pack architecture**: package discovery, validation, version resolution, and direction-based routing are already in place for future downloads and deployment.
+- **A popup that follows the reading flow**: Qiu places the result around the cursor while respecting screen edges.
+
+#### Model capability status
+
+| Capability | Status | Notes |
+|---|---|---|
+| Bundled English ↔ Chinese models | ✅ Available | Fully offline and direction-based lazy loading |
+| Automatic EN/ZH direction detection | ✅ Available | Lightweight Unicode heuristic; no extra detector model |
+| Installed language-pack routing | ✅ Available | Resolves a local package for the requested language pair |
+| Package validation and local import | 🧪 Backend ready | The complete user-facing workflow is still being polished |
+| Model selection and management UI | 🚧 Planned | Inspect, switch, load, unload, and remove models |
+| Curated Qiu language-pack downloads | 🚧 Planned | Download only the languages a user needs |
+| Broader automatic language detection | 🚧 Planned | Extend beyond the current English/Chinese decision |
+| Custom model deployment | 🚧 Planned | Load compatible package directories, followed by an optional local LLM backend |
+
 ### What it does today
 
 - Fully offline English → Chinese and Chinese → English translation
+- Automatic English/Chinese detection and translation-direction selection
 - Keyboard, modifier-only, and mouse-button triggers
 - Popup-first interaction with asynchronous selection reading and inference
 - Cursor- and screen-aware popup placement
@@ -244,6 +291,7 @@ Qiu needs Accessibility and Input Monitoring to recognize the global trigger and
 
 - [x] Native macOS menu bar app
 - [x] Offline English ↔ Chinese translation
+- [x] Automatic EN/ZH direction detection and language-pack routing
 - [x] Configurable keyboard and mouse triggers
 - [x] Popup placement, asynchronous selection, and performance instrumentation
 - [x] Native INT8 inference, lazy loading, and memory lifecycle validation

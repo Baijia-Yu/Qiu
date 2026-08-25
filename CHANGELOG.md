@@ -4,6 +4,10 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+### Changed
+
+- Documented Qiu's custom hold-and-select trigger, automatic EN/ZH direction detection, current language-pack backend, and planned model deployment capabilities.
+
 ## [0.1.0-alpha.1] - 2026-08-26
 
 ### Added
