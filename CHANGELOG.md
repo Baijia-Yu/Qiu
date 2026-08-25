@@ -4,6 +4,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+## [0.1.0-alpha.3] - 2026-08-26
+
 ### Fixed
 
 - Apply Accessibility and Input Monitoring permission changes without requiring Qiu to restart.

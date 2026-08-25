@@ -74,7 +74,7 @@ Qiu 起源于一次没有网络的飞行。
 ### 下载与使用
 
 > [!IMPORTANT]
-> 当前 `v0.1.0-alpha.2` 是 Apple Silicon 测试版，尚未使用 Apple Developer ID 签名和公证。macOS 可能阻止首次打开。请只从本仓库的 Releases 下载，并核对 Release 中的说明。
+> 当前 `v0.1.0-alpha.3` 是 Apple Silicon 测试版，尚未使用 Apple Developer ID 签名和公证。macOS 可能阻止首次打开。请只从本仓库的 Releases 下载，并核对 Release 中的说明。
 
 1. 从 [Releases](https://github.com/Baijia-Yu/Qiu/releases) 下载最新 DMG。
 2. 打开 DMG，把 Qiu 拖入 Applications。
@@ -227,7 +227,7 @@ That became Qiu: **offline translation that feels like a system capability while
 ### Download and use
 
 > [!IMPORTANT]
-> `v0.1.0-alpha.2` is an Apple Silicon test build. It is not yet signed with an Apple Developer ID or notarized, so macOS may block the first launch. Download it only from this repository's Releases page and read the release notes.
+> `v0.1.0-alpha.3` is an Apple Silicon test build. It is not yet signed with an Apple Developer ID or notarized, so macOS may block the first launch. Download it only from this repository's Releases page and read the release notes.
 
 1. Download the latest DMG from [Releases](https://github.com/Baijia-Yu/Qiu/releases).
 2. Open it and drag Qiu into Applications.
