@@ -1,0 +1,17 @@
+{
+  "formatVersion": 1,
+  "id": "opus-mt-en-zh-int8",
+  "displayName": "English → 中文",
+  "runtime": "ctranslate2-marian-int8",
+  "sourceLanguage": "en",
+  "targetLanguage": "zh",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "source": "Helsinki-NLP/opus-mt-en-zh",
+  "attribution": "Original model by Helsinki-NLP (OPUS-MT).",
+  "model": { "path": "ct2/model" },
+  "tokenizer": {
+    "source": "sentencepiece/source.spm",
+    "target": "sentencepiece/target.spm"
+  }
+}

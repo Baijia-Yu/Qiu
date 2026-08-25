@@ -1,0 +1,52 @@
+# macOS
+.DS_Store
+
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# Native and model toolchains
+.native-build/
+.model-tools/
+build/
+native-build/
+
+# Generated apps and release artifacts
+Distribution/*.app/
+Distribution/*.dmg
+Distribution/LanguagePacks/
+*.dmg
+
+# Model weights and generated tokenizer assets
+Models/source/
+Models/ct2/
+Models/LanguagePacks/**/ct2/
+Models/LanguagePacks/**/sentencepiece/
+
+# Local benchmark output
+/native-memory-benchmark.csv
+*.log
+
+# Secrets and signing material
+.env
+.env.*
+*.p12
+*.pem
+*.key
+*.cer
+*.mobileprovision
+
+# Editors and local agent work
+.idea/
+.vscode/
+.agents/
+design-plans/
+skills-lock.json
+
+# Temporary files
+*.tmp
+*.temp
+*~
