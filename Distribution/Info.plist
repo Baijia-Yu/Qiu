@@ -7,7 +7,7 @@
     <key>CFBundleExecutable</key>
     <string>QuickTranslate</string>
     <key>CFBundleIdentifier</key>
-    <string>com.yubaijia.quicktranslate</string>
+    <string>app.qiu.localtranslator</string>
     <key>CFBundleName</key>
     <string>Qiu</string>
     <key>CFBundleIconFile</key>
