@@ -69,7 +69,7 @@ swift test
 
 `prepare_models.sh` downloads the two upstream Helsinki-NLP repositories and converts them locally. The downloads and generated weights are ignored by Git. Set `SENTENCEPIECE_PREFIX` if SentencePiece is installed outside the usual Apple Silicon or Intel Homebrew prefix.
 
-The generated development app is `Distribution/Qiu.app`. It is ad-hoc signed for local testing; it is not notarized for public distribution.
+The generated development app is `Distribution/Qiu.app`. It is ad-hoc signed for local testing. Developer ID signing, DMG creation and notarization are documented in [Docs/Release.md](Docs/Release.md).
 
 ## Models
 
@@ -84,7 +84,7 @@ The current memory attribution data and measurement notes are in [Benchmarks](Be
 - Language-pack management UI
 - Official downloadable language-pack catalogue
 - Additional language pairs and lightweight automatic language detection
-- Signed and notarized release packaging
+- Universal Apple Silicon and Intel release builds
 
 ## License
 

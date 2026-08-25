@@ -5,6 +5,7 @@ project_root=$(cd "$(dirname "$0")/.." && pwd)
 app_path="$project_root/Distribution/Qiu.app"
 resources="$app_path/Contents/Resources"
 icon_source="$project_root/Distribution/Assets/QiuIcon.png"
+signing_identity=${QIU_SIGNING_IDENTITY:--}
 icon_workspace=$(mktemp -d "$project_root/.build/qiu-icon.XXXXXX")
 iconset_path="$icon_workspace/Qiu.iconset"
 
@@ -42,5 +43,17 @@ for package_id in opus-mt-en-zh-int8 opus-mt-zh-en-int8; do
   package_root="$resources/LanguagePacks/$package_id/1.0.0"
   ditto "$project_root/Models/LanguagePacks/$package_id/1.0.0" "$package_root"
 done
-codesign --force --deep --sign - "$app_path"
+
+if [[ "$signing_identity" == "-" ]]; then
+  codesign --force --sign - "$app_path"
+else
+  codesign \
+    --force \
+    --options runtime \
+    --timestamp \
+    --sign "$signing_identity" \
+    "$app_path"
+fi
+
+codesign --verify --deep --strict --verbose=2 "$app_path"
 echo "$app_path"

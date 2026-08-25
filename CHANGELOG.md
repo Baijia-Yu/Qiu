@@ -8,6 +8,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 - Qiu language-pack manifest validation, discovery, routing and local import foundation.
 - Standard read-only bundled English ↔ Chinese language packs.
+- Reproducible Developer ID signing, DMG creation and Apple notarization workflow.
 
 ## [0.1.0] - 2026-08-26
 
