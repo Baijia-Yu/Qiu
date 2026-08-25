@@ -259,3 +259,19 @@ private func runDitto(arguments: [String]) throws {
     #expect(!reverse.contains("⁇"), "Unexpected output: \(reverse)")
     await engine.unload()
 }
+
+@Test func doesNotLeakPlaceholdersForAcademicNotation() async throws {
+    let engine = LocalTranslationEngine()
+    let translation = try await engine.translate(
+        "We formalize an LLM-based agentic system as 𝓜 = ⟨𝓘, S, A, Ψ, Ω⟩, where 𝓘 indexes the {1, ⋯, N} agents.",
+        from: .english,
+        to: .chinese
+    )
+    for symbol in ["𝓜", "⟨", "𝓘", "Ψ", "Ω", "⟩", "⋯"] {
+        #expect(translation.contains(symbol), "Missing \(symbol) in: \(translation)")
+    }
+    #expect(!translation.localizedCaseInsensitiveContains("ZXQ"), "Leaked placeholder: \(translation)")
+    #expect(!translation.contains("9078"), "Leaked placeholder: \(translation)")
+    #expect(!translation.contains("⁇"), "Unexpected output: \(translation)")
+    await engine.unload()
+}

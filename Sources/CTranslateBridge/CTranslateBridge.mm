@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <cctype>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -59,15 +58,6 @@ std::string normalize_academic_unicode(const std::string &input) {
   return normalized;
 }
 
-std::string ascii_fallback(const std::string &input) {
-  std::string result;
-  result.reserve(input.size());
-  for (const unsigned char character : input) {
-    result += character < 128 ? static_cast<char>(character) : ' ';
-  }
-  return result;
-}
-
 bool contains_unknown_piece(const std::vector<std::string> &tokens) {
   for (const auto &token : tokens) {
     if (token == "<unk>") return true;
@@ -75,116 +65,16 @@ bool contains_unknown_piece(const std::vector<std::string> &tokens) {
   return false;
 }
 
-size_t utf8_character_length(const unsigned char first_byte) {
-  if ((first_byte & 0x80) == 0) return 1;
-  if ((first_byte & 0xE0) == 0xC0) return 2;
-  if ((first_byte & 0xF0) == 0xE0) return 3;
-  if ((first_byte & 0xF8) == 0xF0) return 4;
-  return 1;
-}
-
-bool is_academic_special_character(const std::string &character) {
-  for (const auto &[special, _] : academic_unicode_replacements()) {
-    if (special == character) return true;
+bool contains_unknown_id(
+    sentencepiece::SentencePieceProcessor &processor,
+    const std::string &input) {
+  std::vector<int> ids;
+  const auto status = processor.Encode(input, &ids);
+  if (!status.ok()) throw std::runtime_error(status.ToString());
+  for (const int id : ids) {
+    if (id == processor.unk_id()) return true;
   }
   return false;
-}
-
-struct ProtectedCharacter {
-  std::string marker;
-  std::string original;
-};
-
-struct ProtectedInput {
-  std::string text;
-  std::vector<ProtectedCharacter> characters;
-};
-
-ProtectedInput protect_special_characters(
-    const std::string &input,
-    sentencepiece::SentencePieceProcessor &source_sp) {
-  ProtectedInput result;
-  result.text.reserve(input.size());
-
-  std::vector<std::pair<size_t, size_t>> unknown_ranges;
-  const auto encoded = source_sp.EncodeAsImmutableProto(input);
-  for (const auto &piece : encoded.pieces()) {
-    if (piece.id() == static_cast<uint32_t>(source_sp.unk_id())) {
-      unknown_ranges.emplace_back(piece.begin(), piece.end());
-    }
-  }
-
-  for (size_t offset = 0; offset < input.size();) {
-    const size_t requested_length = utf8_character_length(
-        static_cast<unsigned char>(input[offset]));
-    const size_t length = std::min(requested_length, input.size() - offset);
-    const std::string character = input.substr(offset, length);
-    const size_t character_end = offset + length;
-
-    const bool tokenizer_unknown = std::any_of(
-        unknown_ranges.begin(), unknown_ranges.end(),
-        [offset, character_end](const auto &range) {
-          return offset < range.second && character_end > range.first;
-        });
-
-    const bool should_protect = is_academic_special_character(character)
-        || tokenizer_unknown;
-    if (!should_protect) {
-      result.text += character;
-    } else {
-      const std::string marker = "ZXQ" + std::to_string(result.characters.size()) + "QXZ";
-      result.text += marker;
-      result.characters.push_back({marker, character});
-    }
-    offset = character_end;
-  }
-  return result;
-}
-
-bool ascii_equal_ignoring_case(const char left, const char right) {
-  return std::tolower(static_cast<unsigned char>(left))
-      == std::tolower(static_cast<unsigned char>(right));
-}
-
-bool restore_marker(std::string &output, const ProtectedCharacter &protected_character) {
-  for (size_t start = 0; start < output.size(); ++start) {
-    size_t output_index = start;
-    size_t marker_index = 0;
-    while (output_index < output.size() && marker_index < protected_character.marker.size()) {
-      if (std::isspace(static_cast<unsigned char>(output[output_index]))) {
-        ++output_index;
-        continue;
-      }
-      if (!ascii_equal_ignoring_case(
-              output[output_index], protected_character.marker[marker_index])) {
-        break;
-      }
-      ++output_index;
-      ++marker_index;
-    }
-    if (marker_index == protected_character.marker.size()) {
-      output.replace(start, output_index - start, protected_character.original);
-      return true;
-    }
-  }
-  return false;
-}
-
-std::string restore_special_characters(
-    std::string output,
-    const std::vector<ProtectedCharacter> &protected_characters) {
-  output = replace_all(std::move(output), "⁇", "");
-  std::vector<std::string> missing;
-  for (const auto &protected_character : protected_characters) {
-    if (!restore_marker(output, protected_character)) {
-      missing.push_back(protected_character.original);
-    }
-  }
-  if (!missing.empty()) {
-    output += " ";
-    for (const auto &character : missing) output += character;
-  }
-  return output;
 }
 
 struct TranslationRuntime {
@@ -258,11 +148,133 @@ struct TranslationRuntime {
     bool output_has_unknown = false;
   };
 
+  struct NormalizedSurface {
+    size_t source_index;
+    std::string original;
+    std::string normalized;
+  };
+
+  std::string visible_surface(std::string value) {
+    value = replace_all(std::move(value), "▁", " ");
+    const size_t first = value.find_first_not_of(' ');
+    if (first == std::string::npos) return "";
+    const size_t last = value.find_last_not_of(' ');
+    return value.substr(first, last - first + 1);
+  }
+
+  std::string sanitize_unknown_source(const std::string &input) {
+    if (!contains_unknown_id(*source_sp, input)) return input;
+
+    std::string sanitized;
+    size_t copied_until = 0;
+    const auto encoded = source_sp->EncodeAsImmutableProto(input);
+    for (const auto &piece : encoded.pieces()) {
+      if (piece.id() != static_cast<uint32_t>(source_sp->unk_id())) continue;
+      sanitized += input.substr(copied_until, piece.begin() - copied_until);
+      const auto replacement = normalize_academic_unicode(piece.surface());
+      sanitized += replacement == piece.surface()
+          ? " "
+          : sanitize_unknown_source(replacement);
+      copied_until = piece.end();
+    }
+    sanitized += input.substr(copied_until);
+    return sanitized;
+  }
+
+  std::vector<std::string> preserved_surfaces(const std::string &input) {
+    std::vector<std::string> surfaces;
+    const auto encoded = source_sp->EncodeAsImmutableProto(input);
+    for (const auto &piece : encoded.pieces()) {
+      const auto original = visible_surface(piece.surface());
+      const auto normalized = visible_surface(source_sp->Normalize(piece.surface()));
+      if (!original.empty()
+          && (piece.id() == static_cast<uint32_t>(source_sp->unk_id())
+              || original != normalized)) {
+        surfaces.push_back(original);
+      }
+    }
+    for (const auto &[symbol, _] : academic_unicode_replacements()) {
+      if (input.find(symbol) != std::string::npos
+          && symbol != "—" && symbol != "–"
+          && symbol != "“" && symbol != "”"
+          && symbol != "‘" && symbol != "’") {
+        surfaces.push_back(symbol);
+      }
+    }
+    return surfaces;
+  }
+
+  std::string preserve_missing_surfaces(
+      std::string output,
+      const std::vector<std::string> &surfaces,
+      const Direction direction) {
+    std::vector<std::string> missing;
+    for (const auto &surface : surfaces) {
+      if (output.find(surface) == std::string::npos
+          && std::find(missing.begin(), missing.end(), surface) == missing.end()) {
+        missing.push_back(surface);
+      }
+    }
+    if (missing.empty()) return output;
+
+    output += direction == EnToZh ? "\n符号：" : "\nSymbols: ";
+    for (size_t index = 0; index < missing.size(); ++index) {
+      if (index > 0) output += " ";
+      output += missing[index];
+    }
+    return output;
+  }
+
+  std::vector<NormalizedSurface> normalized_surfaces(const std::string &input) {
+    std::vector<NormalizedSurface> surfaces;
+    const auto encoded = source_sp->EncodeAsImmutableProto(input);
+    const auto pieces = encoded.pieces();
+    for (size_t index = 0; index < pieces.size(); ++index) {
+      const auto original = visible_surface(pieces[index].surface());
+      const auto normalized = visible_surface(source_sp->Normalize(pieces[index].surface()));
+      if (!original.empty() && original != normalized) {
+        surfaces.push_back({index, original, normalized});
+      }
+    }
+    return surfaces;
+  }
+
+  void restore_normalized_surfaces(
+      std::vector<std::string> &hypothesis,
+      const std::vector<std::vector<float>> &attention,
+      const std::vector<NormalizedSurface> &surfaces) {
+    std::vector<bool> used_targets(hypothesis.size(), false);
+    for (const auto &surface : surfaces) {
+      size_t best_target = hypothesis.size();
+      float best_score = -1;
+      for (size_t target_index = 0;
+           target_index < hypothesis.size() && target_index < attention.size();
+           ++target_index) {
+        if (used_targets[target_index]) continue;
+        if (surface.source_index >= attention[target_index].size()) continue;
+        std::string decoded_piece;
+        const std::vector<std::string> target_piece = {hypothesis[target_index]};
+        if (!target_sp->Decode(target_piece, &decoded_piece).ok()) continue;
+        if (decoded_piece.find(surface.normalized) == std::string::npos) continue;
+        if (attention[target_index][surface.source_index] > best_score) {
+          best_score = attention[target_index][surface.source_index];
+          best_target = target_index;
+        }
+      }
+      if (best_target == hypothesis.size()) continue;
+
+      const bool starts_word = hypothesis[best_target].rfind("▁", 0) == 0;
+      hypothesis[best_target] = (starts_word ? "▁" : "") + surface.original;
+      used_targets[best_target] = true;
+    }
+  }
+
   TranslationAttempt translate_once(const std::string &input) {
+    const auto surfaces = normalized_surfaces(input);
     std::vector<std::string> source_tokens;
     const auto encode_status = source_sp->Encode(input, &source_tokens);
     if (!encode_status.ok()) throw std::runtime_error(encode_status.ToString());
-    const bool source_has_unknown = contains_unknown_piece(source_tokens);
+    const bool source_has_unknown = contains_unknown_id(*source_sp, input);
 
     // These OPUS models were made with ct2-transformers-converter. MarianTokenizer
     // appends EOS, so the C++ path must do the same to match the Python reference.
@@ -272,13 +284,19 @@ struct TranslationRuntime {
     options.beam_size = 1;
     options.max_decoding_length = 256;
     options.return_scores = false;
+    options.return_attention = !surfaces.empty();
+    options.replace_unknowns = true;
     const auto results = translator->translate_batch({source_tokens}, options);
     if (results.empty() || results.front().hypotheses.empty()) {
       throw std::runtime_error("Translation returned no hypothesis");
     }
 
     std::string output;
-    const auto &hypothesis = results.front().hypotheses.front();
+    auto hypothesis = results.front().hypotheses.front();
+    if (!surfaces.empty() && !results.front().attention.empty()) {
+      restore_normalized_surfaces(
+          hypothesis, results.front().attention.front(), surfaces);
+    }
     const auto decode_status = target_sp->Decode(hypothesis, &output);
     if (!decode_status.ok()) throw std::runtime_error(decode_status.ToString());
     return {output, source_has_unknown,
@@ -286,36 +304,11 @@ struct TranslationRuntime {
   }
 
   std::string translate(const std::string &input, const Direction direction) {
-    const auto protected_input = protect_special_characters(input, *source_sp);
-    const auto normalized = normalize_academic_unicode(protected_input.text);
-    std::vector<std::string> original_tokens;
-    const auto encode_status = source_sp->Encode(protected_input.text, &original_tokens);
-    if (!encode_status.ok()) throw std::runtime_error(encode_status.ToString());
-
-    std::string prepared = contains_unknown_piece(original_tokens)
-        ? normalized
-        : protected_input.text;
-    if (direction == EnToZh) {
-      std::vector<std::string> prepared_tokens;
-      const auto prepared_status = source_sp->Encode(prepared, &prepared_tokens);
-      if (!prepared_status.ok()) throw std::runtime_error(prepared_status.ToString());
-      if (contains_unknown_piece(prepared_tokens)) prepared = ascii_fallback(prepared);
-    }
-
-    auto attempt = translate_once(prepared);
-    if (!attempt.source_has_unknown
-        && (!attempt.output_has_unknown || !protected_input.characters.empty())) {
-      return restore_special_characters(
-          std::move(attempt.output), protected_input.characters);
-    }
-
-    if (prepared != normalized) {
-      attempt = translate_once(normalized);
-      if (!attempt.source_has_unknown
-          && (!attempt.output_has_unknown || !protected_input.characters.empty())) {
-        return restore_special_characters(
-            std::move(attempt.output), protected_input.characters);
-      }
+    const auto surfaces = preserved_surfaces(input);
+    const auto prepared = sanitize_unknown_source(input);
+    const auto attempt = translate_once(prepared);
+    if (!attempt.source_has_unknown && !attempt.output_has_unknown) {
+      return preserve_missing_surfaces(attempt.output, surfaces, direction);
     }
 
     throw std::runtime_error("此离线模型暂时无法解析其中的特殊字符；请简化公式后重试。");

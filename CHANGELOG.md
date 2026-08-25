@@ -9,16 +9,19 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 - Apply Accessibility and Input Monitoring permission changes without requiring Qiu to restart.
 - Preserve mathematical symbols, Greek letters, superscripts, emoji, and other tokenizer-unknown Unicode characters in offline translation results.
 - Avoid rejecting an entire offline translation just because the selected text contains a character outside the OPUS-MT tokenizer vocabulary.
-- Restore protected characters after inference and retain them with a fallback when the model consumes a placeholder.
+- Prevent internal placeholder text from leaking into translations of academic notation.
+- Restore NFKC-normalized mathematical glyphs with model attention and retain unaligned symbols in a deterministic fallback line.
 
 ### Changed
 
-- Detect unknown character spans with one SentencePiece pass per request, avoiding per-character tokenizer calls on long selections.
+- Detect and sanitize source-side unknown spans with SentencePiece byte offsets before inference.
+- Use CTranslate2's native attention-based unknown replacement instead of model-facing text placeholders.
 - Document Unicode preservation in the Chinese and English feature lists.
 
 ### Added
 
 - Added English → Chinese and Chinese → English regression coverage using `μ`, `∈`, `²`, `≤`, `Δ`, `≈`, and emoji.
+- Added an academic-notation regression using `𝓜`, `𝓘`, `Ψ`, `Ω`, `⟨⟩`, and `⋯`.
 
 ## [0.1.0-alpha.2] - 2026-08-26
 
