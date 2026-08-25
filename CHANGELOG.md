@@ -6,6 +6,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Fixed
 
+- Apply Accessibility and Input Monitoring permission changes without requiring Qiu to restart.
 - Preserve mathematical symbols, Greek letters, superscripts, emoji, and other tokenizer-unknown Unicode characters in offline translation results.
 - Avoid rejecting an entire offline translation just because the selected text contains a character outside the OPUS-MT tokenizer vocabulary.
 - Restore protected characters after inference and retain them with a fallback when the model consumes a placeholder.

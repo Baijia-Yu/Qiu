@@ -32,7 +32,7 @@ enum AppReadiness: Equatable {
 }
 
 @MainActor
-final class AppState: ObservableObject {
+final class AppState: NSObject, ObservableObject {
     private static let shortcutDefaultsKey = "triggerShortcut"
     private static let legacyShortcutDefaultsKey = "triggerShortcutModifiers"
 
@@ -51,12 +51,13 @@ final class AppState: ObservableObject {
     @Published private(set) var inputMonitoringTrusted = false
 
     private let popup = TranslationPanelController()
+    private var permissionRefreshTask: Task<Void, Never>?
     private lazy var eventMonitor = SelectionEventMonitor(shortcut: triggerShortcut) { [weak self] mouseUpTime in
         Task { @MainActor in self?.translateCurrentSelection(mouseUpTime: mouseUpTime) }
     }
     private let translator: any TranslationEngine = LocalTranslationEngine()
 
-    init() {
+    override init() {
         if let data = UserDefaults.standard.data(forKey: Self.shortcutDefaultsKey),
            let stored = try? JSONDecoder().decode(TriggerShortcut.self, from: data) {
             triggerShortcut = stored
@@ -70,6 +71,13 @@ final class AppState: ObservableObject {
         } else {
             triggerShortcut = .defaultValue
         }
+        super.init()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationDidBecomeActive),
+            name: NSApplication.didBecomeActiveNotification,
+            object: nil
+        )
         configureBundledModelPath()
         refreshPermissionStatus()
         eventMonitor.start()
@@ -88,14 +96,45 @@ final class AppState: ObservableObject {
     }
 
     func refreshPermissionStatus() {
-        accessibilityTrusted = AXIsProcessTrusted()
-        inputMonitoringTrusted = CGPreflightListenEventAccess()
+        let newAccessibilityTrusted = AXIsProcessTrusted()
+        let newInputMonitoringTrusted = CGPreflightListenEventAccess()
+        let permissionsChanged = newAccessibilityTrusted != accessibilityTrusted
+            || newInputMonitoringTrusted != inputMonitoringTrusted
+
+        accessibilityTrusted = newAccessibilityTrusted
+        inputMonitoringTrusted = newInputMonitoringTrusted
+
+        if permissionsChanged, isEnabled {
+            eventMonitor.restartIfRunning()
+        }
     }
 
     func requestRequiredPermissions() {
         _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
         _ = CGRequestListenEventAccess()
         refreshPermissionStatus()
+        watchPermissionChangesDuringAuthorization()
+    }
+
+    @objc private func applicationDidBecomeActive() {
+        refreshPermissionStatus()
+    }
+
+    private func watchPermissionChangesDuringAuthorization() {
+        permissionRefreshTask?.cancel()
+        permissionRefreshTask = Task { @MainActor [weak self] in
+            // TCC changes do not emit an app notification while System Settings is
+            // frontmost. Poll only during this explicit authorization flow.
+            for _ in 0..<120 {
+                guard !Task.isCancelled else { return }
+                try? await Task.sleep(for: .milliseconds(500))
+                guard let self else { return }
+                self.refreshPermissionStatus()
+                if self.accessibilityTrusted && self.inputMonitoringTrusted {
+                    return
+                }
+            }
+        }
     }
 
     private func translateCurrentSelection(mouseUpTime: UInt64) {

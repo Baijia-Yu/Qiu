@@ -46,4 +46,10 @@ final class SelectionEventMonitor {
         monitor = nil
         triggerIsPressed = false
     }
+
+    func restartIfRunning() {
+        guard monitor != nil else { return }
+        stop()
+        start()
+    }
 }

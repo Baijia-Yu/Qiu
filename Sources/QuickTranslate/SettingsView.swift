@@ -38,6 +38,9 @@ struct SettingsView: View {
 
                 if appState.readiness == .needsAuthorization {
                     Button("前往授权…") { appState.requestRequiredPermissions() }
+                    Text("授权后返回 Qiu 即会自动生效，无需退出或重启。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 
