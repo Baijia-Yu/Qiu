@@ -17,6 +17,7 @@ native-build/
 # Generated apps and release artifacts
 Distribution/*.app/
 Distribution/*.dmg
+Distribution/*.qiu-languagepack
 Distribution/LanguagePacks/
 *.dmg
 

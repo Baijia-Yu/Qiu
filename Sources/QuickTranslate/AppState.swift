@@ -51,6 +51,11 @@ final class AppState: NSObject, ObservableObject {
     @Published private(set) var inputMonitoringTrusted = false
     @Published private(set) var installedLanguagePacks: [InstalledLanguagePack] = []
     @Published private(set) var selectedPackageIdentities: [String: String] = [:]
+    @Published private(set) var officialModelPackages: [OfficialModelPackage] = []
+    @Published private(set) var isLoadingModelCatalog = false
+    @Published private(set) var downloadingPackageIdentity: String?
+    @Published private(set) var modelCatalogMessage: String?
+    @Published private(set) var modelCatalogError: String?
 
     private let popup = TranslationPanelController()
     private var permissionRefreshTask: Task<Void, Never>?
@@ -59,6 +64,8 @@ final class AppState: NSObject, ObservableObject {
     }
     private let packStore: LanguagePackStore
     private let translator: LocalTranslationEngine
+    private let modelCatalogClient: OfficialModelCatalogClient
+    private let languagePackInstaller: LanguagePackInstaller
 
     override init() {
         let packStore = LanguagePackStore()
@@ -68,6 +75,8 @@ final class AppState: NSObject, ObservableObject {
             packStore: packStore,
             preferredPackageIdentities: selectedPackages
         )
+        self.modelCatalogClient = OfficialModelCatalogClient()
+        self.languagePackInstaller = LanguagePackInstaller(store: packStore)
         selectedPackageIdentities = selectedPackages
         if let data = UserDefaults.standard.data(forKey: Self.shortcutDefaultsKey),
            let stored = try? JSONDecoder().decode(TriggerShortcut.self, from: data) {
@@ -182,6 +191,54 @@ final class AppState: NSObject, ObservableObject {
             selectedPackageIdentities = validSelections
             LanguagePackPreferences.save(validSelections)
             await translator.updatePreferredPackages(validSelections)
+        }
+    }
+
+    func isOfficialPackageInstalled(_ package: OfficialModelPackage) -> Bool {
+        installedLanguagePacks.contains { $0.id == package.identity }
+    }
+
+    func loadOfficialModelCatalog() {
+        guard !isLoadingModelCatalog else { return }
+        isLoadingModelCatalog = true
+        modelCatalogError = nil
+        modelCatalogMessage = nil
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                officialModelPackages = try await modelCatalogClient.fetchPackages()
+            } catch {
+                modelCatalogError = error.localizedDescription
+            }
+            isLoadingModelCatalog = false
+        }
+    }
+
+    func downloadOfficialPackage(_ package: OfficialModelPackage) {
+        guard downloadingPackageIdentity == nil,
+              !isOfficialPackageInstalled(package) else { return }
+        downloadingPackageIdentity = package.identity
+        modelCatalogError = nil
+        modelCatalogMessage = nil
+
+        Task { [weak self] in
+            guard let self else { return }
+            var archiveURL: URL?
+            do {
+                let downloadedArchive = try await modelCatalogClient.download(package)
+                archiveURL = downloadedArchive
+                let installed = try await languagePackInstaller.install(
+                    from: downloadedArchive,
+                    expectedIdentity: package.identity
+                )
+                installedLanguagePacks = await packStore.allPackages()
+                modelCatalogMessage = "已安装 \(installed.package.metadata.displayName) v\(installed.package.metadata.version)。"
+            } catch {
+                modelCatalogError = error.localizedDescription
+            }
+            if let archiveURL { try? FileManager.default.removeItem(at: archiveURL) }
+            downloadingPackageIdentity = nil
         }
     }
 

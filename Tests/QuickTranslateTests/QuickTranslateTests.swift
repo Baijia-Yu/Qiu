@@ -137,6 +137,82 @@ import AppKit
     #expect(installed.id == "opus-mt-ja-zh-int8@1.0.0")
 }
 
+@Test func rejectsDownloadedPackageWithUnexpectedIdentity() async throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("QiuLanguagePackIdentityTests-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let source = try makeLanguagePack()
+    defer { try? FileManager.default.removeItem(at: source) }
+    let installRoot = root.appendingPathComponent("LanguagePacks", isDirectory: true)
+    let store = LanguagePackStore(builtInRoot: root, userInstalledRoot: installRoot)
+    let installer = LanguagePackInstaller(installRoot: installRoot, store: store)
+
+    await #expect(throws: LanguagePackInstallError.unexpectedPackageIdentity(
+        expected: "opus-mt-en-zh-int8@1.0.0",
+        actual: "opus-mt-ja-zh-int8@1.0.0"
+    )) {
+        try await installer.install(
+            from: source,
+            expectedIdentity: "opus-mt-en-zh-int8@1.0.0"
+        )
+    }
+    #expect((await store.allPackages()).isEmpty)
+}
+
+@Test func decodesOfficialModelCatalog() throws {
+    let data = Data(#"""
+    {
+      "formatVersion": 1,
+      "packages": [{
+        "packageID": "opus-mt-en-zh-int8",
+        "displayName": "English → 中文",
+        "sourceLanguage": "en",
+        "targetLanguage": "zh",
+        "version": "1.0.0",
+        "sizeBytes": 71070057,
+        "sha256": "64aa971684617d627f8c9ae30e528a5f0c803ceecc17c9b4e706c77b7d11968f",
+        "downloadURL": "https://example.com/en-zh.qiu-languagepack",
+        "license": "Apache-2.0"
+      }]
+    }
+    """#.utf8)
+
+    let packages = try OfficialModelCatalogClient.decodeCatalog(data)
+    #expect(packages.count == 1)
+    #expect(packages[0].identity == "opus-mt-en-zh-int8@1.0.0")
+}
+
+@Test func rejectsInsecureOfficialModelDownloadURL() {
+    let data = Data(#"""
+    {
+      "formatVersion": 1,
+      "packages": [{
+        "packageID": "opus-mt-en-zh-int8",
+        "displayName": "English → 中文",
+        "sourceLanguage": "en",
+        "targetLanguage": "zh",
+        "version": "1.0.0",
+        "sizeBytes": 1,
+        "sha256": "64aa971684617d627f8c9ae30e528a5f0c803ceecc17c9b4e706c77b7d11968f",
+        "downloadURL": "http://example.com/en-zh.qiu-languagepack"
+      }]
+    }
+    """#.utf8)
+
+    #expect(throws: OfficialModelCatalogError.insecureDownloadURL) {
+        try OfficialModelCatalogClient.decodeCatalog(data)
+    }
+}
+
+@Test func computesLanguagePackSHA256() throws {
+    let file = FileManager.default.temporaryDirectory
+        .appendingPathComponent("QiuChecksumTests-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: file) }
+    try Data("Qiu".utf8).write(to: file)
+
+    #expect(try OfficialModelCatalogClient.sha256(of: file) == "f507dd354dca2773ae5fd5fb50caf4bf1fd6caadea523758a71ec4654cb2d224")
+}
+
 private func makeLanguagePack(
     modelPath: String = "ct2/model",
     runtime: String = "ctranslate2-marian-int8",

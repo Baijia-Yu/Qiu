@@ -1,0 +1,27 @@
+{
+  "formatVersion": 1,
+  "packages": [
+    {
+      "packageID": "opus-mt-en-zh-int8",
+      "displayName": "English → 中文",
+      "sourceLanguage": "en",
+      "targetLanguage": "zh",
+      "version": "1.0.0",
+      "sizeBytes": 71070057,
+      "sha256": "64aa971684617d627f8c9ae30e528a5f0c803ceecc17c9b4e706c77b7d11968f",
+      "downloadURL": "https://github.com/Baijia-Yu/Qiu/releases/download/v0.1.0-alpha.3/Qiu-LanguagePack-en-zh-1.0.0.qiu-languagepack",
+      "license": "Apache-2.0"
+    },
+    {
+      "packageID": "opus-mt-zh-en-int8",
+      "displayName": "中文 → English",
+      "sourceLanguage": "zh",
+      "targetLanguage": "en",
+      "version": "1.0.0",
+      "sizeBytes": 70734580,
+      "sha256": "8c5fa26052c6044ab7d940afbf3db8086adc5189eba4e9d309decc556a188cda",
+      "downloadURL": "https://github.com/Baijia-Yu/Qiu/releases/download/v0.1.0-alpha.3/Qiu-LanguagePack-zh-en-1.0.0.qiu-languagepack",
+      "license": "CC-BY-4.0"
+    }
+  ]
+}

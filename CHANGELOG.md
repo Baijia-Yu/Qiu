@@ -7,10 +7,14 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 ### Added
 
 - Added per-direction selection of installed language packs in Settings, with persistent preferences, automatic newest-version fallback, and model-list refresh.
+- Added a user-initiated Qiu language-pack catalogue backed by official GitHub Release assets.
+- Added on-demand model download with HTTPS response validation, exact-size and SHA-256 verification, package-identity checks, and atomic installation.
+- Added catalogue, checksum, insecure-URL, and unexpected-package regression coverage.
 
 ### Changed
 
 - Documented the planned on-device translation personalization roadmap and its user-controlled privacy boundaries.
+- Documented the official `.qiu-languagepack` download format, catalogue fields, verification flow, and network privacy boundary.
 
 ## [0.1.0-alpha.3] - 2026-08-26
 

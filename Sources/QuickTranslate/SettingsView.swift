@@ -49,6 +49,49 @@ struct SettingsView: View {
                 }
             }
 
+            Section("获取语言包") {
+                if appState.officialModelPackages.isEmpty {
+                    Button {
+                        appState.loadOfficialModelCatalog()
+                    } label: {
+                        if appState.isLoadingModelCatalog {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("正在读取官方目录…")
+                        } else {
+                            Label("查看 Qiu 官方语言包", systemImage: "shippingbox")
+                        }
+                    }
+                    .disabled(appState.isLoadingModelCatalog)
+                } else {
+                    ForEach(appState.officialModelPackages) { package in
+                        officialPackageRow(package)
+                    }
+
+                    Button {
+                        appState.loadOfficialModelCatalog()
+                    } label: {
+                        Label("刷新官方目录", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(appState.isLoadingModelCatalog || appState.downloadingPackageIdentity != nil)
+                }
+
+                if let message = appState.modelCatalogMessage {
+                    Label(message, systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                }
+                if let error = appState.modelCatalogError {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+
+                Text("仅在点击后联网；语言包来自 Qiu 官方 GitHub Release，安装前会校验文件大小、SHA-256 与包内清单。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("权限") {
                 PermissionStatusRow(title: "辅助功能", isAllowed: appState.accessibilityTrusted, detail: "读取其他应用的选中文本")
                 PermissionStatusRow(title: "输入监控", isAllowed: appState.inputMonitoringTrusted, detail: "识别划词触发键和鼠标操作")
@@ -63,13 +106,13 @@ struct SettingsView: View {
 
             Section("隐私") {
                 Label("完全在本地翻译", systemImage: "lock.fill")
-                Text("选中的文本不会上传，也不会保存为历史记录。")
+                Text("选中的文本不会上传，也不会保存为历史记录。只有你主动查看或下载语言包时才会访问网络。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
-        .frame(width: 540, height: 500)
+        .frame(width: 560, height: 620)
         .padding()
         .onAppear {
             appState.refreshPermissionStatus()
@@ -112,6 +155,41 @@ struct SettingsView: View {
     private func modelLabel(_ pack: InstalledLanguagePack) -> String {
         let origin = pack.origin == .builtIn ? "内置" : "本地"
         return "\(pack.package.metadata.displayName) · v\(pack.package.metadata.version) · \(origin)"
+    }
+
+    @ViewBuilder
+    private func officialPackageRow(_ package: OfficialModelPackage) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(package.displayName)
+                Text(officialPackageDetail(package))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+
+            if appState.isOfficialPackageInstalled(package) {
+                Label("已安装", systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+            } else if appState.downloadingPackageIdentity == package.identity {
+                ProgressView()
+                    .controlSize(.small)
+                Text("下载中…")
+                    .font(.caption)
+            } else {
+                Button("下载并安装") {
+                    appState.downloadOfficialPackage(package)
+                }
+                .disabled(appState.downloadingPackageIdentity != nil)
+            }
+        }
+    }
+
+    private func officialPackageDetail(_ package: OfficialModelPackage) -> String {
+        let size = ByteCountFormatter.string(fromByteCount: package.sizeBytes, countStyle: .file)
+        let license = package.license.map { " · \($0)" } ?? ""
+        return "\(package.sourceLanguage.uppercased()) → \(package.targetLanguage.uppercased()) · v\(package.version) · \(size)\(license)"
     }
 
     private func installShortcutMonitor() {

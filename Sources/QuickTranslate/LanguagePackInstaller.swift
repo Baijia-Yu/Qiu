@@ -4,6 +4,7 @@ enum LanguagePackInstallError: LocalizedError, Equatable {
     case unsupportedInput
     case archiveExtractionFailed
     case packageAlreadyInstalled
+    case unexpectedPackageIdentity(expected: String, actual: String)
     case cannotRemoveBuiltInPackage
     case unsafeRemovalTarget
 
@@ -15,6 +16,8 @@ enum LanguagePackInstallError: LocalizedError, Equatable {
             "无法打开这个 Qiu 语言包。"
         case .packageAlreadyInstalled:
             "这个版本的语言包已经安装。"
+        case .unexpectedPackageIdentity(let expected, let actual):
+            "下载的语言包与官方目录不一致（应为 \(expected)，实际为 \(actual)）。"
         case .cannotRemoveBuiltInPackage:
             "内置语言包不能移除。"
         case .unsafeRemovalTarget:
@@ -37,7 +40,10 @@ actor LanguagePackInstaller {
         self.store = store
     }
 
-    func install(from sourceURL: URL) async throws -> InstalledLanguagePack {
+    func install(
+        from sourceURL: URL,
+        expectedIdentity: String? = nil
+    ) async throws -> InstalledLanguagePack {
         let fileManager = FileManager.default
         let stagingRoot = installRoot
             .appendingPathComponent(".staging", isDirectory: true)
@@ -47,6 +53,12 @@ actor LanguagePackInstaller {
 
         let candidate = try prepareCandidate(from: sourceURL, in: stagingRoot)
         let validated = try LanguagePackValidator.validate(at: candidate)
+        if let expectedIdentity, validated.identity != expectedIdentity {
+            throw LanguagePackInstallError.unexpectedPackageIdentity(
+                expected: expectedIdentity,
+                actual: validated.identity
+            )
+        }
         let destination = installRoot
             .appendingPathComponent(validated.metadata.id, isDirectory: true)
             .appendingPathComponent(validated.metadata.version, isDirectory: true)
