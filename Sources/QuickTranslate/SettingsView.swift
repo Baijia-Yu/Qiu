@@ -32,6 +32,23 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("翻译模型") {
+                modelPicker(title: "英文 → 中文", source: .english, target: .chinese)
+                modelPicker(title: "中文 → 英文", source: .chinese, target: .english)
+
+                HStack {
+                    Button {
+                        appState.reloadLanguagePacks()
+                    } label: {
+                        Label("刷新可用模型", systemImage: "arrow.clockwise")
+                    }
+                    Spacer()
+                    Text("自动选择会使用该方向可用的最高版本")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section("权限") {
                 PermissionStatusRow(title: "辅助功能", isAllowed: appState.accessibilityTrusted, detail: "读取其他应用的选中文本")
                 PermissionStatusRow(title: "输入监控", isAllowed: appState.inputMonitoringTrusted, detail: "识别划词触发键和鼠标操作")
@@ -52,7 +69,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 500, height: 330)
+        .frame(width: 540, height: 500)
         .padding()
         .onAppear {
             appState.refreshPermissionStatus()
@@ -63,6 +80,38 @@ struct SettingsView: View {
 
     private var recordingLabel: String {
         TriggerShortcut.modifiers(recordedModifiers)?.displayName ?? "请按触发键…"
+    }
+
+    @ViewBuilder
+    private func modelPicker(title: String, source: Language, target: Language) -> some View {
+        let packages = appState.languagePacks(from: source, to: target)
+        LabeledContent(title) {
+            Picker(
+                "",
+                selection: Binding(
+                    get: { appState.selectedPackageIdentity(from: source, to: target) },
+                    set: { appState.selectLanguagePack($0, from: source, to: target) }
+                )
+            ) {
+                Text("自动选择（推荐）").tag("")
+                ForEach(packages) { pack in
+                    Text(modelLabel(pack)).tag(pack.id)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 300)
+        }
+
+        if packages.isEmpty {
+            Text("没有找到可用于 \(title) 的本地语言包。")
+                .font(.caption)
+                .foregroundStyle(.orange)
+        }
+    }
+
+    private func modelLabel(_ pack: InstalledLanguagePack) -> String {
+        let origin = pack.origin == .builtIn ? "内置" : "本地"
+        return "\(pack.package.metadata.displayName) · v\(pack.package.metadata.version) · \(origin)"
     }
 
     private func installShortcutMonitor() {

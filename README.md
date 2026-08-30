@@ -50,7 +50,8 @@ Qiu 起源于一次没有网络的飞行。
 | 中英语言方向自动识别 | ✅ 已完成 | 轻量 Unicode heuristic，无额外识别模型 |
 | 已安装语言包自动路由 | ✅ 已完成 | 根据语言对选择本地可用版本 |
 | 语言包校验与本地导入 | 🧪 后端已完成 | UI 与完整用户流程仍在完善 |
-| 模型选择与管理界面 | 🚧 计划中 | 查看、切换、加载、卸载与删除模型 |
+| 已安装模型选择界面 | ✅ 已完成 | 英→中、中文→英分别选择，自动回退最高可用版本，重启后保留 |
+| 高级模型管理 | 🚧 计划中 | 查看详情、导入、加载、卸载与删除模型 |
 | Qiu 官方语言包下载 | 🚧 计划中 | 用户自行选择需要下载的语言 |
 | 更多语言自动识别 | 🚧 计划中 | 从中英判断扩展到多语言识别 |
 | 自定义模型部署 | 🚧 计划中 | 加载兼容语言包目录，后续支持可选本地大模型后端 |
@@ -67,6 +68,7 @@ Qiu 起源于一次没有网络的飞行。
 - Accessibility API 优先读取选区，不持续轮询
 - OPUS-MT INT8、CTranslate2、Ruy 与 Accelerate 原生推理
 - 模型按方向懒加载，支持卸载与进程内 LRU 缓存
+- 在设置中按翻译方向选择已安装模型，选择会持久保存
 - 本地语言包发现、校验与导入基础能力
 - 不上传选中文字，不记录翻译历史
 
@@ -144,9 +146,10 @@ Qiu 需要辅助功能和输入监控权限来识别全局触发及读取其他 
 - [x] Popup 定位、异步选区与性能埋点
 - [x] INT8 原生推理、懒加载与内存生命周期验证
 - [x] 本地语言包清单、校验和导入基础能力
+- [x] 按翻译方向选择已安装模型并持久保存
 - [ ] Qiu 官方审核语言包目录与 App 内下载
 - [ ] 更多语言对与轻量自动语言识别
-- [ ] 高级模型管理：查看、加载、移除和切换本地模型
+- [ ] 高级模型管理：查看详情、导入、加载、卸载和移除本地模型
 - [ ] 自定义 CTranslate2 / Qiu Language Pack 目录导入
 - [ ] 可选的本地大模型翻译后端
 - [ ] 本地翻译个体适应：术语表、固定译名、领域风格与用户纠错学习
@@ -206,7 +209,8 @@ That became Qiu: **offline translation that feels like a system capability while
 | Automatic EN/ZH direction detection | ✅ Available | Lightweight Unicode heuristic; no extra detector model |
 | Installed language-pack routing | ✅ Available | Resolves a local package for the requested language pair |
 | Package validation and local import | 🧪 Backend ready | The complete user-facing workflow is still being polished |
-| Model selection and management UI | 🚧 Planned | Inspect, switch, load, unload, and remove models |
+| Installed-model selection UI | ✅ Available | Select EN→ZH and ZH→EN independently, fall back to the newest available version, and persist choices |
+| Advanced model management | 🚧 Planned | Inspect details, import, load, unload, and remove models |
 | Curated Qiu language-pack downloads | 🚧 Planned | Download only the languages a user needs |
 | Broader automatic language detection | 🚧 Planned | Extend beyond the current English/Chinese decision |
 | Custom model deployment | 🚧 Planned | Load compatible package directories, followed by an optional local LLM backend |
@@ -223,6 +227,7 @@ That became Qiu: **offline translation that feels like a system capability while
 - Accessibility-first selection access without continuous polling
 - Native OPUS-MT INT8 inference with CTranslate2, Ruy, and Accelerate
 - Direction-based lazy loading, explicit unload, and an in-memory LRU cache
+- Per-direction installed-model selection with persistent preferences
 - Foundations for local language-pack discovery, validation, and import
 - No uploaded selections and no translation history
 
@@ -300,9 +305,10 @@ Qiu needs Accessibility and Input Monitoring to recognize the global trigger and
 - [x] Popup placement, asynchronous selection, and performance instrumentation
 - [x] Native INT8 inference, lazy loading, and memory lifecycle validation
 - [x] Local language-pack manifest, validation, and import foundations
+- [x] Per-direction installed-model selection with persistent preferences
 - [ ] Curated Qiu language-pack catalogue with in-app downloads
 - [ ] More language pairs and lightweight automatic language detection
-- [ ] Advanced model management: inspect, load, remove, and switch local models
+- [ ] Advanced model management: inspect details, import, load, unload, and remove local models
 - [ ] Custom CTranslate2 / Qiu Language Pack directory import
 - [ ] Optional local LLM translation backend
 - [ ] On-device personalization for terminology, preferred names, domain style, and user-confirmed corrections

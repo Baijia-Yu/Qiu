@@ -70,33 +70,50 @@ actor TranslationCache {
 actor LocalTranslationEngine: TranslationEngine {
     private let cache = TranslationCache(capacity: 128)
     private let packStore: LanguagePackStore
-    private var loadedPackageIdentity: String?
+    private var preferredPackageIdentities: [String: String]
+    private var loadedPackageIdentities: Set<String> = []
 
-    init(packStore: LanguagePackStore = LanguagePackStore()) {
+    init(
+        packStore: LanguagePackStore = LanguagePackStore(),
+        preferredPackageIdentities: [String: String] = [:]
+    ) {
         self.packStore = packStore
+        self.preferredPackageIdentities = preferredPackageIdentities
     }
 
     func translate(_ text: String, from source: Language, to target: Language) async throws -> String {
         let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let pack = await packStore.resolve(
             sourceLanguage: source.rawValue,
-            targetLanguage: target.rawValue
+            targetLanguage: target.rawValue,
+            preferredIdentity: preferredPackageIdentities[
+                LanguagePackPreferences.pairKey(
+                    sourceLanguage: source.rawValue,
+                    targetLanguage: target.rawValue
+                )
+            ]
         ) else {
             throw TranslationError.modelUnavailable(source, target)
         }
         let key = "\(normalized.lowercased())|\(source.rawValue)-\(target.rawValue)|\(pack.identity)"
         if let cached = await cache.value(for: key) { return cached }
-        loadedPackageIdentity = pack.identity
+        loadedPackageIdentities.insert(pack.identity)
         let result = try translateUncached(normalized, from: source, pack: pack)
         await cache.insert(result, for: key)
         return result
     }
 
     func unload() async {
-        if let loadedPackageIdentity {
-            QTNativeUnloadPackage(loadedPackageIdentity)
+        for identity in loadedPackageIdentities {
+            QTNativeUnloadPackage(identity)
         }
-        loadedPackageIdentity = nil
+        loadedPackageIdentities.removeAll(keepingCapacity: true)
+    }
+
+    func updatePreferredPackages(_ selections: [String: String]) async {
+        guard selections != preferredPackageIdentities else { return }
+        await unload()
+        preferredPackageIdentities = selections
     }
 
     private func translateUncached(

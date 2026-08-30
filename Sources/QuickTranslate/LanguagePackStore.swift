@@ -57,12 +57,21 @@ actor LanguagePackStore {
 
     func allPackages() -> [InstalledLanguagePack] { installed }
 
-    func resolve(sourceLanguage: String, targetLanguage: String) -> ValidatedLanguagePack? {
+    func resolve(
+        sourceLanguage: String,
+        targetLanguage: String,
+        preferredIdentity: String? = nil
+    ) -> ValidatedLanguagePack? {
         if !hasLoaded { _ = reload() }
-        return installed.filter {
+        let candidates = installed.filter {
             $0.package.metadata.sourceLanguage == sourceLanguage
                 && $0.package.metadata.targetLanguage == targetLanguage
-        }.max {
+        }
+        if let preferredIdentity,
+           let preferred = candidates.first(where: { $0.id == preferredIdentity }) {
+            return preferred.package
+        }
+        return candidates.max {
             compareVersions($0.package.metadata.version, $1.package.metadata.version) == .orderedAscending
         }?.package
     }

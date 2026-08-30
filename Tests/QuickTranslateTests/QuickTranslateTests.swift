@@ -70,6 +70,31 @@ import AppKit
     #expect(packages.contains { $0.id == "opus-mt-en-zh-int8@1.1.0" && $0.origin == .userInstalled })
     let resolved = await store.resolve(sourceLanguage: "ja", targetLanguage: "zh")
     #expect(resolved?.identity == "opus-mt-en-zh-int8@1.1.0")
+
+    let preferred = await store.resolve(
+        sourceLanguage: "ja",
+        targetLanguage: "zh",
+        preferredIdentity: "opus-mt-en-zh-int8@1.0.0"
+    )
+    #expect(preferred?.identity == "opus-mt-en-zh-int8@1.0.0")
+
+    let missingPreferenceFallback = await store.resolve(
+        sourceLanguage: "ja",
+        targetLanguage: "zh",
+        preferredIdentity: "missing@9.9.9"
+    )
+    #expect(missingPreferenceFallback?.identity == "opus-mt-en-zh-int8@1.1.0")
+}
+
+@Test func persistsPreferredLanguagePacksByDirection() throws {
+    let suiteName = "QiuLanguagePackPreferencesTests-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let selections = ["en->zh": "opus-mt-en-zh-int8@1.0.0"]
+
+    LanguagePackPreferences.save(selections, to: defaults)
+
+    #expect(LanguagePackPreferences.load(from: defaults) == selections)
 }
 
 @Test func importsAndRemovesAValidatedLanguagePackAtomically() async throws {

@@ -4,6 +4,10 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+### Added
+
+- Added per-direction selection of installed language packs in Settings, with persistent preferences, automatic newest-version fallback, and model-list refresh.
+
 ### Changed
 
 - Documented the planned on-device translation personalization roadmap and its user-controlled privacy boundaries.

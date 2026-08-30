@@ -49,15 +49,26 @@ final class AppState: NSObject, ObservableObject {
     }
     @Published private(set) var accessibilityTrusted = false
     @Published private(set) var inputMonitoringTrusted = false
+    @Published private(set) var installedLanguagePacks: [InstalledLanguagePack] = []
+    @Published private(set) var selectedPackageIdentities: [String: String] = [:]
 
     private let popup = TranslationPanelController()
     private var permissionRefreshTask: Task<Void, Never>?
     private lazy var eventMonitor = SelectionEventMonitor(shortcut: triggerShortcut) { [weak self] mouseUpTime in
         Task { @MainActor in self?.translateCurrentSelection(mouseUpTime: mouseUpTime) }
     }
-    private let translator: any TranslationEngine = LocalTranslationEngine()
+    private let packStore: LanguagePackStore
+    private let translator: LocalTranslationEngine
 
     override init() {
+        let packStore = LanguagePackStore()
+        let selectedPackages = LanguagePackPreferences.load()
+        self.packStore = packStore
+        self.translator = LocalTranslationEngine(
+            packStore: packStore,
+            preferredPackageIdentities: selectedPackages
+        )
+        selectedPackageIdentities = selectedPackages
         if let data = UserDefaults.standard.data(forKey: Self.shortcutDefaultsKey),
            let stored = try? JSONDecoder().decode(TriggerShortcut.self, from: data) {
             triggerShortcut = stored
@@ -81,6 +92,7 @@ final class AppState: NSObject, ObservableObject {
         configureBundledModelPath()
         refreshPermissionStatus()
         eventMonitor.start()
+        reloadLanguagePacks()
     }
 
     var readiness: AppReadiness {
@@ -114,6 +126,63 @@ final class AppState: NSObject, ObservableObject {
         _ = CGRequestListenEventAccess()
         refreshPermissionStatus()
         watchPermissionChangesDuringAuthorization()
+    }
+
+    func languagePacks(from source: Language, to target: Language) -> [InstalledLanguagePack] {
+        installedLanguagePacks.filter {
+            $0.package.metadata.sourceLanguage == source.rawValue
+                && $0.package.metadata.targetLanguage == target.rawValue
+        }.sorted {
+            if $0.package.metadata.displayName != $1.package.metadata.displayName {
+                return $0.package.metadata.displayName < $1.package.metadata.displayName
+            }
+            return $0.package.metadata.version > $1.package.metadata.version
+        }
+    }
+
+    func selectedPackageIdentity(from source: Language, to target: Language) -> String {
+        selectedPackageIdentities[
+            LanguagePackPreferences.pairKey(
+                sourceLanguage: source.rawValue,
+                targetLanguage: target.rawValue
+            )
+        ] ?? ""
+    }
+
+    func selectLanguagePack(_ identity: String, from source: Language, to target: Language) {
+        if !identity.isEmpty {
+            guard languagePacks(from: source, to: target).contains(where: { $0.id == identity }) else {
+                return
+            }
+        }
+
+        let key = LanguagePackPreferences.pairKey(
+            sourceLanguage: source.rawValue,
+            targetLanguage: target.rawValue
+        )
+        if identity.isEmpty {
+            selectedPackageIdentities.removeValue(forKey: key)
+        } else {
+            selectedPackageIdentities[key] = identity
+        }
+        LanguagePackPreferences.save(selectedPackageIdentities)
+        let selections = selectedPackageIdentities
+        Task { await translator.updatePreferredPackages(selections) }
+    }
+
+    func reloadLanguagePacks() {
+        Task { [weak self] in
+            guard let self else { return }
+            let packages = await packStore.reload()
+            installedLanguagePacks = packages
+
+            let available = Set(packages.map(\.id))
+            let validSelections = selectedPackageIdentities.filter { available.contains($0.value) }
+            guard validSelections != selectedPackageIdentities else { return }
+            selectedPackageIdentities = validSelections
+            LanguagePackPreferences.save(validSelections)
+            await translator.updatePreferredPackages(validSelections)
+        }
     }
 
     @objc private func applicationDidBecomeActive() {
