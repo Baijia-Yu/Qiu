@@ -10,6 +10,9 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 - Added a user-initiated Qiu language-pack catalogue backed by official GitHub Release assets.
 - Added on-demand model download with HTTPS response validation, exact-size and SHA-256 verification, package-identity checks, and atomic installation.
 - Added catalogue, checksum, insecure-URL, and unexpected-package regression coverage.
+- Added an advanced model-management window for package details, local file/directory import, per-direction selection, explicit preloading and unloading, Finder reveal, and removal of user-installed packs.
+- Added a package-level native preload API and visible in-memory model status.
+- Added protection against importing duplicates of bundled packages and against removing built-in packs.
 
 ### Changed
 

@@ -59,6 +59,9 @@ actor LanguagePackInstaller {
                 actual: validated.identity
             )
         }
+        guard !(await store.allPackages()).contains(where: { $0.id == validated.identity }) else {
+            throw LanguagePackInstallError.packageAlreadyInstalled
+        }
         let destination = installRoot
             .appendingPathComponent(validated.metadata.id, isDirectory: true)
             .appendingPathComponent(validated.metadata.version, isDirectory: true)

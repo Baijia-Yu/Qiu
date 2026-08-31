@@ -47,6 +47,12 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+
+                Button {
+                    ModelManagementWindowController.shared.show(appState: appState)
+                } label: {
+                    Label("高级模型管理…", systemImage: "externaldrive")
+                }
             }
 
             Section("获取语言包") {

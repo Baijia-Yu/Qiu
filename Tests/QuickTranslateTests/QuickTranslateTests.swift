@@ -137,6 +137,41 @@ import AppKit
     #expect(installed.id == "opus-mt-ja-zh-int8@1.0.0")
 }
 
+@Test func rejectsImportWhenSamePackageIsAlreadyBuiltIn() async throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("QiuLanguagePackDuplicateTests-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let builtInRoot = root.appendingPathComponent("BuiltIn", isDirectory: true)
+    let installRoot = root.appendingPathComponent("User", isDirectory: true)
+    try makePackInCollection(root: builtInRoot, id: "opus-mt-ja-zh-int8", version: "1.0.0")
+    let source = try makeLanguagePack()
+    defer { try? FileManager.default.removeItem(at: source) }
+    let store = LanguagePackStore(builtInRoot: builtInRoot, userInstalledRoot: installRoot)
+    let installer = LanguagePackInstaller(installRoot: installRoot, store: store)
+
+    await #expect(throws: LanguagePackInstallError.packageAlreadyInstalled) {
+        try await installer.install(from: source)
+    }
+}
+
+@Test func protectsBuiltInPackageFromRemoval() async throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("QiuBuiltInRemovalTests-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let builtInRoot = root.appendingPathComponent("BuiltIn", isDirectory: true)
+    try makePackInCollection(root: builtInRoot, id: "opus-mt-ja-zh-int8", version: "1.0.0")
+    let store = LanguagePackStore(
+        builtInRoot: builtInRoot,
+        userInstalledRoot: root.appendingPathComponent("User", isDirectory: true)
+    )
+    let installer = LanguagePackInstaller(store: store)
+    let package = try #require((await store.reload()).first)
+
+    await #expect(throws: LanguagePackInstallError.cannotRemoveBuiltInPackage) {
+        try await installer.remove(package)
+    }
+}
+
 @Test func rejectsDownloadedPackageWithUnexpectedIdentity() async throws {
     let root = FileManager.default.temporaryDirectory
         .appendingPathComponent("QiuLanguagePackIdentityTests-\(UUID().uuidString)", isDirectory: true)
@@ -302,6 +337,18 @@ private func runDitto(arguments: [String]) throws {
     await engine.unload()
     let reverse = try await engine.translate("这听起来是个好主意。", from: .chinese, to: .english)
     #expect(reverse == "That sounds like a good idea.")
+}
+
+@Test func explicitlyLoadsAndUnloadsLanguagePack() async throws {
+    let store = LanguagePackStore()
+    let package = try #require(await store.resolve(sourceLanguage: "en", targetLanguage: "zh"))
+    let engine = LocalTranslationEngine(packStore: store)
+
+    try await engine.load(package)
+    #expect(await engine.loadedPackages() == [package.identity])
+
+    await engine.unload(package.identity)
+    #expect((await engine.loadedPackages()).isEmpty)
 }
 
 @Test func translatesOneHundredWarmRequestsWithoutFailure() async throws {

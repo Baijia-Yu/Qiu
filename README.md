@@ -53,9 +53,9 @@ Qiu 起源于一次没有网络的飞行。
 | 语言包校验与本地导入 | ✅ 已完成 | 验证格式、运行时、路径与必需文件后原子安装 |
 | 已安装模型选择界面 | ✅ 已完成 | 英→中、中文→英分别选择，自动回退最高可用版本，重启后保留 |
 | Qiu 官方语言包下载 | ✅ 已完成 | 手动读取官方目录，按需下载并校验 SHA-256 后安装 |
-| 高级模型管理 | 🚧 计划中 | 查看详情、导入、加载、卸载与删除模型 |
+| 高级模型管理 | ✅ 已完成 | 查看详情、导入、设为当前模型、预加载、卸载与移除用户语言包 |
 | 更多语言自动识别 | 🚧 计划中 | 从中英判断扩展到多语言识别 |
-| 自定义模型部署 | 🚧 计划中 | 加载兼容语言包目录，后续支持可选本地大模型后端 |
+| 自定义模型部署 | 🧪 部分完成 | 可导入兼容 Qiu 语言包文件或目录；本地大模型后端仍在计划中 |
 | 翻译个体适应 | 🚧 计划中 | 基于用户主动确认的术语、译名、纠错与风格偏好进行本地适配，可查看、编辑和清除 |
 
 ### 现在能做什么
@@ -72,6 +72,7 @@ Qiu 起源于一次没有网络的飞行。
 - 在设置中按翻译方向选择已安装模型，选择会持久保存
 - 在设置中按需查看、下载并安装 Qiu 官方语言包
 - 本地语言包发现、校验、包身份确认与原子安装
+- 在高级模型管理中查看包信息、导入、切换、预加载、卸载和移除用户模型
 - 不上传选中文字，不记录翻译历史
 
 ### 下载与使用
@@ -151,8 +152,8 @@ Qiu 需要辅助功能和输入监控权限来识别全局触发及读取其他 
 - [x] 按翻译方向选择已安装模型并持久保存
 - [x] Qiu 官方审核语言包目录与 App 内按需下载
 - [ ] 更多语言对与轻量自动语言识别
-- [ ] 高级模型管理：查看详情、导入、加载、卸载和移除本地模型
-- [ ] 自定义 CTranslate2 / Qiu Language Pack 目录导入
+- [x] 高级模型管理：查看详情、导入、加载、卸载和移除本地模型
+- [x] 自定义 CTranslate2 / Qiu Language Pack 目录导入
 - [ ] 可选的本地大模型翻译后端
 - [ ] 本地翻译个体适应：术语表、固定译名、领域风格与用户纠错学习
 - [ ] Intel / Apple Silicon Universal 发布包
@@ -214,9 +215,9 @@ That became Qiu: **offline translation that feels like a system capability while
 | Package validation and local import | ✅ Available | Validates format, runtime, paths, and required files before atomic installation |
 | Installed-model selection UI | ✅ Available | Select EN→ZH and ZH→EN independently, fall back to the newest available version, and persist choices |
 | Curated Qiu language-pack downloads | ✅ Available | Manually fetch the catalogue, download on demand, verify SHA-256, and install |
-| Advanced model management | 🚧 Planned | Inspect details, import, load, unload, and remove models |
+| Advanced model management | ✅ Available | Inspect details, import, select, preload, unload, and remove user-installed packs |
 | Broader automatic language detection | 🚧 Planned | Extend beyond the current English/Chinese decision |
-| Custom model deployment | 🚧 Planned | Load compatible package directories, followed by an optional local LLM backend |
+| Custom model deployment | 🧪 Partial | Compatible Qiu package files and directories can be imported; a local LLM backend remains planned |
 | Personalized translation adaptation | 🚧 Planned | Locally adapt to user-confirmed terminology, preferred names, corrections, and style; inspectable, editable, and removable |
 
 ### What it does today
@@ -233,6 +234,7 @@ That became Qiu: **offline translation that feels like a system capability while
 - Per-direction installed-model selection with persistent preferences
 - On-demand discovery, download, verification, and installation of curated Qiu language packs
 - Local language-pack discovery, identity checks, and atomic installation
+- Advanced model inspection, local import, selection, preloading, unloading, and removal
 - No uploaded selections and no translation history
 
 ### Download and use
@@ -312,8 +314,8 @@ Qiu needs Accessibility and Input Monitoring to recognize the global trigger and
 - [x] Per-direction installed-model selection with persistent preferences
 - [x] Curated Qiu language-pack catalogue with on-demand in-app downloads
 - [ ] More language pairs and lightweight automatic language detection
-- [ ] Advanced model management: inspect details, import, load, unload, and remove local models
-- [ ] Custom CTranslate2 / Qiu Language Pack directory import
+- [x] Advanced model management: inspect details, import, load, unload, and remove local models
+- [x] Custom CTranslate2 / Qiu Language Pack directory import
 - [ ] Optional local LLM translation backend
 - [ ] On-device personalization for terminology, preferred names, domain style, and user-confirmed corrections
 - [ ] Universal Intel / Apple Silicon release

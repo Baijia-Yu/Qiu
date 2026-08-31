@@ -23,6 +23,9 @@ struct QuickTranslateApp: App {
             Button("设置…") {
                 SettingsWindowController.shared.show(appState: appState)
             }
+            Button("模型管理…") {
+                ModelManagementWindowController.shared.show(appState: appState)
+            }
             Button("退出 Qiu") { NSApplication.shared.terminate(nil) }
         }
         .menuBarExtraStyle(.menu)

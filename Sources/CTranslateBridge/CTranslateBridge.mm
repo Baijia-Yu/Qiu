@@ -379,6 +379,25 @@ const char *QTNativeTranslatePackage(const char *input,
   }
 }
 
+const char *QTNativeLoadPackage(const char *package_identity,
+                                const char *model_directory,
+                                const char *source_tokenizer,
+                                const char *target_tokenizer) {
+  try {
+    if (!package_identity || !model_directory || !source_tokenizer || !target_tokenizer) {
+      throw std::runtime_error("Language pack paths are missing");
+    }
+    std::lock_guard<std::mutex> lock(store.mutex);
+    const std::string identity(package_identity);
+    if (identity.empty()) throw std::runtime_error("Language pack identity is missing");
+    package_runtime(identity).load_model(model_directory, source_tokenizer, target_tokenizer);
+    return nullptr;
+  } catch (const std::exception &error) {
+    RuntimeStore::result = error.what();
+    return RuntimeStore::result.c_str();
+  }
+}
+
 int QTNativePrimeTokenizers(int direction) {
   try {
     std::lock_guard<std::mutex> lock(store.mutex);

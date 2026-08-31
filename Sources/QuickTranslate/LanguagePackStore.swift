@@ -55,7 +55,10 @@ actor LanguagePackStore {
         return installed
     }
 
-    func allPackages() -> [InstalledLanguagePack] { installed }
+    func allPackages() -> [InstalledLanguagePack] {
+        if !hasLoaded { _ = reload() }
+        return installed
+    }
 
     func resolve(
         sourceLanguage: String,

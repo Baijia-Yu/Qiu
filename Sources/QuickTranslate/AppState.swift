@@ -56,6 +56,10 @@ final class AppState: NSObject, ObservableObject {
     @Published private(set) var downloadingPackageIdentity: String?
     @Published private(set) var modelCatalogMessage: String?
     @Published private(set) var modelCatalogError: String?
+    @Published private(set) var loadedPackageIdentities: Set<String> = []
+    @Published private(set) var modelManagementOperation: String?
+    @Published private(set) var modelManagementMessage: String?
+    @Published private(set) var modelManagementError: String?
 
     private let popup = TranslationPanelController()
     private var permissionRefreshTask: Task<Void, Never>?
@@ -176,22 +180,128 @@ final class AppState: NSObject, ObservableObject {
         }
         LanguagePackPreferences.save(selectedPackageIdentities)
         let selections = selectedPackageIdentities
-        Task { await translator.updatePreferredPackages(selections) }
+        Task {
+            await translator.updatePreferredPackages(selections)
+            loadedPackageIdentities = await translator.loadedPackages()
+        }
     }
 
     func reloadLanguagePacks() {
         Task { [weak self] in
             guard let self else { return }
             let packages = await packStore.reload()
-            installedLanguagePacks = packages
-
-            let available = Set(packages.map(\.id))
-            let validSelections = selectedPackageIdentities.filter { available.contains($0.value) }
-            guard validSelections != selectedPackageIdentities else { return }
-            selectedPackageIdentities = validSelections
-            LanguagePackPreferences.save(validSelections)
-            await translator.updatePreferredPackages(validSelections)
+            await applyLanguagePackSnapshot(packages)
         }
+    }
+
+    func isLanguagePackSelected(_ package: InstalledLanguagePack) -> Bool {
+        selectedPackageIdentities.values.contains(package.id)
+    }
+
+    func useLanguagePack(_ package: InstalledLanguagePack) {
+        guard let source = Language(rawValue: package.package.metadata.sourceLanguage),
+              let target = Language(rawValue: package.package.metadata.targetLanguage) else {
+            modelManagementError = "当前版本尚不支持这个语言方向。"
+            return
+        }
+        selectLanguagePack(package.id, from: source, to: target)
+        modelManagementError = nil
+        modelManagementMessage = "已设为 \(package.package.metadata.displayName) 的当前模型。"
+    }
+
+    func importLanguagePack(from sourceURL: URL) {
+        guard modelManagementOperation == nil else { return }
+        modelManagementOperation = "import"
+        modelManagementMessage = nil
+        modelManagementError = nil
+        let accessed = sourceURL.startAccessingSecurityScopedResource()
+
+        Task { [weak self] in
+            guard let self else { return }
+            defer {
+                if accessed { sourceURL.stopAccessingSecurityScopedResource() }
+                modelManagementOperation = nil
+            }
+            do {
+                let installed = try await languagePackInstaller.install(from: sourceURL)
+                await applyLanguagePackSnapshot(await packStore.allPackages())
+                modelManagementMessage = "已导入 \(installed.package.metadata.displayName) v\(installed.package.metadata.version)。"
+            } catch {
+                modelManagementError = error.localizedDescription
+            }
+        }
+    }
+
+    func loadLanguagePack(_ package: InstalledLanguagePack) {
+        guard modelManagementOperation == nil else { return }
+        modelManagementOperation = package.id
+        modelManagementMessage = nil
+        modelManagementError = nil
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await translator.load(package.package)
+                loadedPackageIdentities = await translator.loadedPackages()
+                modelManagementMessage = "已将 \(package.package.metadata.displayName) 加载到内存。"
+            } catch {
+                modelManagementError = error.localizedDescription
+            }
+            modelManagementOperation = nil
+        }
+    }
+
+    func unloadLanguagePack(_ package: InstalledLanguagePack) {
+        guard modelManagementOperation == nil else { return }
+        modelManagementOperation = package.id
+        Task { [weak self] in
+            guard let self else { return }
+            await translator.unload(package.id)
+            loadedPackageIdentities = await translator.loadedPackages()
+            modelManagementMessage = "已从内存卸载 \(package.package.metadata.displayName)。"
+            modelManagementError = nil
+            modelManagementOperation = nil
+        }
+    }
+
+    func unloadAllLanguagePacks() {
+        guard modelManagementOperation == nil else { return }
+        modelManagementOperation = "unload-all"
+        Task { [weak self] in
+            guard let self else { return }
+            await translator.unload()
+            loadedPackageIdentities = []
+            modelManagementMessage = "已卸载全部模型。"
+            modelManagementError = nil
+            modelManagementOperation = nil
+        }
+    }
+
+    func removeLanguagePack(_ package: InstalledLanguagePack) {
+        guard package.origin == .userInstalled,
+              modelManagementOperation == nil else { return }
+        modelManagementOperation = package.id
+        modelManagementMessage = nil
+        modelManagementError = nil
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                await translator.unload(package.id)
+                try await languagePackInstaller.remove(package)
+                loadedPackageIdentities = await translator.loadedPackages()
+                await applyLanguagePackSnapshot(await packStore.allPackages())
+                modelManagementMessage = "已移除 \(package.package.metadata.displayName) v\(package.package.metadata.version)。"
+            } catch {
+                modelManagementError = error.localizedDescription
+            }
+            modelManagementOperation = nil
+        }
+    }
+
+    func clearModelManagementFeedback() {
+        modelManagementMessage = nil
+        modelManagementError = nil
     }
 
     func isOfficialPackageInstalled(_ package: OfficialModelPackage) -> Bool {
@@ -232,7 +342,7 @@ final class AppState: NSObject, ObservableObject {
                     from: downloadedArchive,
                     expectedIdentity: package.identity
                 )
-                installedLanguagePacks = await packStore.allPackages()
+                await applyLanguagePackSnapshot(await packStore.allPackages())
                 modelCatalogMessage = "已安装 \(installed.package.metadata.displayName) v\(installed.package.metadata.version)。"
             } catch {
                 modelCatalogError = error.localizedDescription
@@ -240,6 +350,21 @@ final class AppState: NSObject, ObservableObject {
             if let archiveURL { try? FileManager.default.removeItem(at: archiveURL) }
             downloadingPackageIdentity = nil
         }
+    }
+
+    private func applyLanguagePackSnapshot(_ packages: [InstalledLanguagePack]) async {
+        installedLanguagePacks = packages
+        let available = Set(packages.map(\.id))
+        for identity in await translator.loadedPackages() where !available.contains(identity) {
+            await translator.unload(identity)
+        }
+        let validSelections = selectedPackageIdentities.filter { available.contains($0.value) }
+        if validSelections != selectedPackageIdentities {
+            selectedPackageIdentities = validSelections
+            LanguagePackPreferences.save(validSelections)
+            await translator.updatePreferredPackages(validSelections)
+        }
+        loadedPackageIdentities = await translator.loadedPackages()
     }
 
     @objc private func applicationDidBecomeActive() {
@@ -285,6 +410,7 @@ final class AppState: NSObject, ObservableObject {
                 let direction = LanguageDetector.direction(for: source)
                 do {
                     let translation = try await self.translator.translate(source, from: direction.source, to: direction.target)
+                    self.loadedPackageIdentities = await self.translator.loadedPackages()
                     metrics.mark("T_translation")
                     self.popup.show(
                         source: source,
@@ -294,6 +420,7 @@ final class AppState: NSObject, ObservableObject {
                     )
                     metrics.mark("T_translation_visible")
                 } catch {
+                    self.loadedPackageIdentities = await self.translator.loadedPackages()
                     self.popup.show(message: error.localizedDescription)
                 }
             }

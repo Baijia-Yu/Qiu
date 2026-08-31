@@ -110,6 +110,31 @@ actor LocalTranslationEngine: TranslationEngine {
         loadedPackageIdentities.removeAll(keepingCapacity: true)
     }
 
+    func load(_ pack: ValidatedLanguagePack) throws {
+        if let error = QTNativeLoadPackage(
+            pack.identity,
+            pack.modelURL.path,
+            pack.sourceTokenizerURL.path,
+            pack.targetTokenizerURL.path
+        ) {
+            throw NSError(
+                domain: "QuickTranslate.NativeEngine",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: String(cString: error)]
+            )
+        }
+        loadedPackageIdentities.insert(pack.identity)
+    }
+
+    func unload(_ identity: String) {
+        QTNativeUnloadPackage(identity)
+        loadedPackageIdentities.remove(identity)
+    }
+
+    func loadedPackages() -> Set<String> {
+        loadedPackageIdentities
+    }
+
     func updatePreferredPackages(_ selections: [String: String]) async {
         guard selections != preferredPackageIdentities else { return }
         await unload()

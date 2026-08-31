@@ -14,6 +14,10 @@ const char *QTNativeTranslatePackage(const char *input,
                                      const char *source_tokenizer,
                                      const char *target_tokenizer,
                                      int direction);
+const char *QTNativeLoadPackage(const char *package_identity,
+                                const char *model_directory,
+                                const char *source_tokenizer,
+                                const char *target_tokenizer);
 int QTNativePrimeTokenizers(int direction);
 int QTNativeLoadModel(int direction);
 void QTNativeUnload(int direction);
