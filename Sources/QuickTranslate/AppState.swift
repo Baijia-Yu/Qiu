@@ -60,6 +60,12 @@ final class AppState: NSObject, ObservableObject {
     @Published private(set) var mlxModels: [MLXModelReference] = []
     @Published private(set) var selectedMLXModelIdentities: [String: String] = [:]
     @Published private(set) var loadedMLXModelIdentities: Set<String> = []
+    @Published private(set) var officialMLXModels: [OfficialMLXModel] = []
+    @Published private(set) var isLoadingMLXCatalog = false
+    @Published private(set) var downloadingMLXModelIdentity: String?
+    @Published private(set) var mlxDownloadProgress: Double = 0
+    @Published private(set) var mlxCatalogMessage: String?
+    @Published private(set) var mlxCatalogError: String?
     @Published private(set) var modelManagementOperation: String?
     @Published private(set) var modelManagementMessage: String?
     @Published private(set) var modelManagementError: String?
@@ -72,6 +78,8 @@ final class AppState: NSObject, ObservableObject {
     private let packStore: LanguagePackStore
     private let translator: LocalTranslationEngine
     private let mlxTranslator = MLXTranslationEngine()
+    private let mlxCatalogClient: OfficialMLXModelCatalogClient
+    private let mlxModelInstaller: OfficialMLXModelInstaller
     private let modelCatalogClient: OfficialModelCatalogClient
     private let languagePackInstaller: LanguagePackInstaller
 
@@ -87,6 +95,8 @@ final class AppState: NSObject, ObservableObject {
         )
         self.modelCatalogClient = OfficialModelCatalogClient()
         self.languagePackInstaller = LanguagePackInstaller(store: packStore)
+        self.mlxCatalogClient = OfficialMLXModelCatalogClient()
+        self.mlxModelInstaller = OfficialMLXModelInstaller()
         selectedPackageIdentities = selectedPackages
         self.mlxModels = mlxModels
         selectedMLXModelIdentities = mlxSelections.filter { selection in
@@ -289,14 +299,68 @@ final class AppState: NSObject, ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             await mlxTranslator.unload(model.id)
-            mlxModels.removeAll { $0.id == model.id }
-            selectedMLXModelIdentities = selectedMLXModelIdentities.filter { $0.value != model.id }
-            MLXModelReferenceStore.saveModels(mlxModels)
-            MLXModelReferenceStore.saveSelections(selectedMLXModelIdentities)
-            loadedMLXModelIdentities = await mlxTranslator.loadedModels()
-            modelManagementMessage = "已移除 \(model.displayName) 的引用，原模型文件未删除。"
-            modelManagementError = nil
+            do {
+                if model.isManagedDownload {
+                    try await mlxModelInstaller.removeManagedFiles(for: model)
+                }
+                mlxModels.removeAll { $0.id == model.id }
+                selectedMLXModelIdentities = selectedMLXModelIdentities.filter { $0.value != model.id }
+                MLXModelReferenceStore.saveModels(mlxModels)
+                MLXModelReferenceStore.saveSelections(selectedMLXModelIdentities)
+                loadedMLXModelIdentities = await mlxTranslator.loadedModels()
+                modelManagementMessage = model.isManagedDownload
+                    ? "已卸载并删除 \(model.displayName) 的已下载文件。"
+                    : "已移除 \(model.displayName) 的引用，原模型文件未删除。"
+                modelManagementError = nil
+            } catch {
+                modelManagementError = error.localizedDescription
+            }
             modelManagementOperation = nil
+        }
+    }
+
+    func loadOfficialMLXCatalog() {
+        guard !isLoadingMLXCatalog else { return }
+        isLoadingMLXCatalog = true
+        mlxCatalogError = nil
+        mlxCatalogMessage = nil
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                officialMLXModels = try await mlxCatalogClient.fetchModels()
+            } catch {
+                mlxCatalogError = error.localizedDescription
+            }
+            isLoadingMLXCatalog = false
+        }
+    }
+
+    func isOfficialMLXModelInstalled(_ model: OfficialMLXModel) -> Bool {
+        mlxModels.contains { $0.managedCatalogIdentity == model.id }
+    }
+
+    func downloadOfficialMLXModel(_ item: OfficialMLXModel) {
+        guard downloadingMLXModelIdentity == nil,
+              !isOfficialMLXModelInstalled(item) else { return }
+        downloadingMLXModelIdentity = item.id
+        mlxDownloadProgress = 0
+        mlxCatalogError = nil
+        mlxCatalogMessage = nil
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let model = try await mlxModelInstaller.install(item) { [weak self] progress in
+                    self?.mlxDownloadProgress = progress
+                }
+                mlxModels.append(model)
+                MLXModelReferenceStore.saveModels(mlxModels)
+                mlxCatalogMessage = "已安装 \(item.displayName)，可在上方按语言方向选择。"
+            } catch {
+                mlxCatalogError = error.localizedDescription
+            }
+            downloadingMLXModelIdentity = nil
+            mlxDownloadProgress = 0
         }
     }
 

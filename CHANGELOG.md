@@ -11,6 +11,9 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 - Added per-direction MLX backend selection, lazy loading, explicit preload/unload, persistent access, memory estimates, and safe reference removal that never deletes source model files.
 - Added a pinned, checksum-verified MLX Metal runtime preparation step for packaged apps.
 - Added structural MLX model tests and an opt-in real-model inference test.
+- Added a curated MLX model catalogue with lightweight, balanced, and high-quality 4-bit tiers pinned to immutable Hugging Face revisions.
+- Added one-click MLX downloads with progress, network recovery, bounded retry, staging validation, temporary-cache cleanup, and safe managed-model deletion.
+- Added an opt-in end-to-end test that downloads, validates, installs, and removes a real 347 MB MLX model.
 - Added per-direction selection of installed language packs in Settings, with persistent preferences, automatic newest-version fallback, and model-list refresh.
 - Added a user-initiated Qiu language-pack catalogue backed by official GitHub Release assets.
 - Added on-demand model download with HTTPS response validation, exact-size and SHA-256 verification, package-identity checks, and atomic installation.

@@ -107,6 +107,55 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("MLX 大模型目录") {
+#if arch(arm64)
+                if appState.officialMLXModels.isEmpty {
+                    Button {
+                        appState.loadOfficialMLXCatalog()
+                    } label: {
+                        if appState.isLoadingMLXCatalog {
+                            ProgressView().controlSize(.small)
+                            Text("正在读取模型目录…")
+                        } else {
+                            Label("查看 Qiu 审核的 MLX 模型", systemImage: "brain")
+                        }
+                    }
+                    .disabled(appState.isLoadingMLXCatalog)
+                } else {
+                    ForEach(appState.officialMLXModels) { model in
+                        officialMLXModelRow(model)
+                    }
+                    Button {
+                        appState.loadOfficialMLXCatalog()
+                    } label: {
+                        Label("刷新 MLX 模型目录", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(
+                        appState.isLoadingMLXCatalog
+                            || appState.downloadingMLXModelIdentity != nil
+                    )
+                }
+
+                if let message = appState.mlxCatalogMessage {
+                    Label(message, systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                }
+                if let error = appState.mlxCatalogError {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+
+                Text("目录仅在你点击后联网。模型从 Hugging Face 的 MLX Community 固定版本下载；完成后会校验模型结构并完全离线运行。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+#else
+                Label("MLX 大模型仅支持 Apple Silicon Mac", systemImage: "info.circle")
+                    .foregroundStyle(.secondary)
+#endif
+            }
+
             Section("权限") {
                 PermissionStatusRow(title: "辅助功能", isAllowed: appState.accessibilityTrusted, detail: "读取其他应用的选中文本")
                 PermissionStatusRow(title: "输入监控", isAllowed: appState.inputMonitoringTrusted, detail: "识别划词触发键和鼠标操作")
@@ -238,6 +287,62 @@ struct SettingsView: View {
         let size = ByteCountFormatter.string(fromByteCount: package.sizeBytes, countStyle: .file)
         let license = package.license.map { " · \($0)" } ?? ""
         return "\(package.sourceLanguage.uppercased()) → \(package.targetLanguage.uppercased()) · v\(package.version) · \(size)\(license)"
+    }
+
+    @ViewBuilder
+    private func officialMLXModelRow(_ model: OfficialMLXModel) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(model.displayName)
+                        Text(model.quality)
+                            .font(.caption2.weight(.medium))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.tint.opacity(0.12), in: Capsule())
+                    }
+                    Text(officialMLXModelDetail(model))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(model.summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+
+                if appState.isOfficialMLXModelInstalled(model) {
+                    Label("已安装", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                } else if appState.downloadingMLXModelIdentity == model.id {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        ProgressView(value: appState.mlxDownloadProgress)
+                            .frame(width: 92)
+                        Text("\(Int(appState.mlxDownloadProgress * 100))%")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Button("一键下载") {
+                        appState.downloadOfficialMLXModel(model)
+                    }
+                    .disabled(appState.downloadingMLXModelIdentity != nil)
+                }
+            }
+            Link(
+                "查看模型来源与许可证",
+                destination: URL(string: "https://huggingface.co/\(model.repositoryID)/tree/\(model.revision)")!
+            )
+            .font(.caption)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func officialMLXModelDetail(_ model: OfficialMLXModel) -> String {
+        let download = ByteCountFormatter.string(fromByteCount: model.downloadBytes, countStyle: .file)
+        let memory = ByteCountFormatter.string(fromByteCount: model.recommendedMemoryBytes, countStyle: .memory)
+        return "\(model.parameterLabel) · 下载 \(download) · 建议可用内存 \(memory) · \(model.license)"
     }
 
     private func installShortcutMonitor() {

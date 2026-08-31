@@ -9,10 +9,23 @@ struct MLXModelReference: Codable, Identifiable, Sendable, Equatable {
     let weightsBytes: Int64
     let contextLength: Int?
     let addedAt: Date
+    var managedCatalogIdentity: String? = nil
+    var sourceRepository: String? = nil
+    var license: String? = nil
 
     var estimatedMemoryBytes: Int64 {
         // Weights plus a conservative allowance for runtime cache and activations.
         weightsBytes + max(512 * 1_024 * 1_024, weightsBytes / 3)
+    }
+
+    var isManagedDownload: Bool { managedCatalogIdentity != nil }
+
+    func withCatalogMetadata(_ item: OfficialMLXModel) -> MLXModelReference {
+        var copy = self
+        copy.managedCatalogIdentity = item.id
+        copy.sourceRepository = item.repositoryID
+        copy.license = item.license
+        return copy
     }
 }
 

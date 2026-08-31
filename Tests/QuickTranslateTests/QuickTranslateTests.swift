@@ -491,3 +491,36 @@ private func runDitto(arguments: [String]) throws {
     await engine.unload()
 }
 #endif
+
+@Test func decodesAndValidatesOfficialMLXCatalog() throws {
+    let data = try Data(contentsOf: URL(fileURLWithPath: "Models/mlx-catalog-v1.json"))
+    let models = try OfficialMLXModelCatalogClient.decodeCatalog(data)
+    #expect(models.count == 3)
+    #expect(models.allSatisfy { $0.revision.count == 40 })
+    #expect(models.allSatisfy { $0.repositoryID.hasPrefix("mlx-community/") })
+}
+
+@Test func rejectsUnsafeOfficialMLXCatalogEntries() throws {
+    let data = Data(#"{"formatVersion":1,"models":[{"id":"../bad","displayName":"Bad","repositoryID":"owner/model","revision":"73e3e38d981303bc594367cd910ea6eb48349da8","downloadBytes":1,"recommendedMemoryBytes":2,"parameterLabel":"1B","quality":"bad","summary":"bad","license":"unknown"}]}"#.utf8)
+    #expect(throws: OfficialMLXCatalogError.invalidModel) {
+        try OfficialMLXModelCatalogClient.decodeCatalog(data)
+    }
+}
+
+#if arch(arm64)
+@Test func downloadsAndRemovesAnOfficialMLXModelWhenConfigured() async throws {
+    guard ProcessInfo.processInfo.environment["QIU_MLX_DOWNLOAD_TEST"] == "1" else { return }
+    let data = try Data(contentsOf: URL(fileURLWithPath: "Models/mlx-catalog-v1.json"))
+    let item = try #require(OfficialMLXModelCatalogClient.decodeCatalog(data).first)
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("QiuMLXDownloadTests-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let installer = OfficialMLXModelInstaller(installRoot: root)
+    let model = try await installer.install(item) { _ in }
+    #expect(model.managedCatalogIdentity == item.id)
+    #expect(model.sourceRepository == item.repositoryID)
+    #expect(FileManager.default.fileExists(atPath: model.lastKnownPath))
+    try await installer.removeManagedFiles(for: model)
+    #expect(!FileManager.default.fileExists(atPath: model.lastKnownPath))
+}
+#endif

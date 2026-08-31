@@ -51,3 +51,9 @@ My-MLX-Model/
 ```
 
 The architecture named by `config.json` must be supported by the pinned `mlx-swift-lm` release. Quantized MLX Community conversions are recommended for lower memory use. Qiu displays the weight size and a conservative memory estimate before loading; actual unified-memory use depends on model architecture, quantization, input length, and generated output. Users remain responsible for each imported model's license and terms.
+
+## Curated MLX download catalogue
+
+[`mlx-catalog-v1.json`](mlx-catalog-v1.json) powers the user-initiated MLX catalogue in Settings. Every entry identifies a public Hugging Face repository, a fixed 40-character commit revision, approximate download size, recommended available unified memory, quality tier, and license. Qiu downloads only JSON configuration, tokenizer assets, text vocabulary files, Jinja templates, and SafeTensors weights.
+
+Downloads first enter a hidden staging directory under `Application Support/Qiu/MLXModels`. The Hugging Face client verifies cached file identities, Qiu validates the resulting MLX directory, and only then is it moved into its final location and registered. Interrupted transfers retry up to three times; failed staging data and the temporary Hub cache are removed. Removing a catalogue-installed model deletes Qiu's managed copy, while removing a user-referenced model never deletes the user's original directory.

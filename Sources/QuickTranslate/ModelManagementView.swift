@@ -58,7 +58,11 @@ struct ModelManagementView: View {
             }
             Button("取消", role: .cancel) { mlxModelPendingRemoval = nil }
         } message: { model in
-            Text("Qiu 只会移除 \(model.displayName) 的引用，不会删除原模型目录或其中的文件。")
+            Text(
+                model.isManagedDownload
+                    ? "将从 Qiu 的模型目录删除 \(model.displayName) 及其已下载文件。此操作可以通过模型目录重新下载。"
+                    : "Qiu 只会移除 \(model.displayName) 的引用，不会删除原模型目录或其中的文件。"
+            )
         }
     }
 
@@ -180,6 +184,8 @@ struct ModelManagementView: View {
             informationRow("预估峰值内存", "约 \(ByteCountFormatter.string(fromByteCount: model.estimatedMemoryBytes, countStyle: .memory))")
             informationRow("上下文长度", model.contextLength.map(String.init) ?? "模型未声明")
             informationRow("运行时", "Apple MLX")
+            informationRow("来源", model.sourceRepository ?? "用户选择的本地目录")
+            informationRow("许可证", model.license ?? "请查看模型目录")
             informationRow("内存状态", appState.loadedMLXModelIdentities.contains(model.id) ? "已加载" : "未加载")
         }
     }
@@ -191,7 +197,11 @@ struct ModelManagementView: View {
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
-            Text("Qiu 只保存目录访问权限，不复制、上传或修改模型文件。")
+            Text(
+                model.isManagedDownload
+                    ? "此模型由 Qiu 下载并管理；移除模型时会删除这份下载文件。"
+                    : "Qiu 只保存目录访问权限，不复制、上传或修改模型文件。"
+            )
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Button("在 Finder 中显示") {
@@ -217,7 +227,10 @@ struct ModelManagementView: View {
                     Button("加载到内存") { appState.loadMLXModel(model) }.disabled(busy)
                 }
                 Spacer()
-                Button("移除引用…", role: .destructive) { mlxModelPendingRemoval = model }.disabled(busy)
+                Button(model.isManagedDownload ? "卸载并删除…" : "移除引用…", role: .destructive) {
+                    mlxModelPendingRemoval = model
+                }
+                .disabled(busy)
             }
             Text("首次加载会比轻量语言包慢，并占用更多统一内存；之后会保持 warm，直到你主动卸载或退出 Qiu。")
                 .font(.caption)

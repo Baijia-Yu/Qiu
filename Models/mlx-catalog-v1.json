@@ -1,0 +1,41 @@
+{
+  "formatVersion": 1,
+  "models": [
+    {
+      "id": "qwen3-0.6b-4bit",
+      "displayName": "Qwen3 0.6B · 轻巧",
+      "repositoryID": "mlx-community/Qwen3-0.6B-4bit",
+      "revision": "73e3e38d981303bc594367cd910ea6eb48349da8",
+      "downloadBytes": 346900000,
+      "recommendedMemoryBytes": 2147483648,
+      "parameterLabel": "0.6B · 4-bit",
+      "quality": "轻量",
+      "summary": "占用较低，适合短句和日常划词；复杂论文翻译能力有限。",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "qwen3-1.7b-4bit",
+      "displayName": "Qwen3 1.7B · 平衡",
+      "repositoryID": "mlx-community/Qwen3-1.7B-4bit",
+      "revision": "3b1b1768f8f8cf8351c712464f906e86c2b8269e",
+      "downloadBytes": 984000000,
+      "recommendedMemoryBytes": 4294967296,
+      "parameterLabel": "1.7B · 4-bit",
+      "quality": "推荐",
+      "summary": "质量、速度和内存较均衡，适合论文与技术文本。",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "qwen3-4b-4bit",
+      "displayName": "Qwen3 4B · 高质量",
+      "repositoryID": "mlx-community/Qwen3-4B-4bit",
+      "revision": "4dcb3d101c2a062e5c1d4bb173588c54ea6c4d25",
+      "downloadBytes": 2300000000,
+      "recommendedMemoryBytes": 8589934592,
+      "parameterLabel": "4B · 4-bit",
+      "quality": "高质量",
+      "summary": "更擅长复杂句法和术语语境，需要更多统一内存和电量。",
+      "license": "Apache-2.0"
+    }
+  ]
+}

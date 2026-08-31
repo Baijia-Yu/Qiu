@@ -58,6 +58,7 @@ Qiu 起源于一次没有网络的飞行。
 | 更多语言自动识别 | 🚧 计划中 | 从中英判断扩展到多语言识别 |
 | 自定义模型部署 | ✅ 已完成 | 可导入 Qiu 语言包，也可引用本地 MLX / SafeTensors 模型目录 |
 | MLX 本地大模型后端 | ✅ 已完成 | Apple Silicon 可用，按方向选择、懒加载、预加载、卸载且重启后保留 |
+| Qiu 审核的 MLX 模型下载 | ✅ 已完成 | 三档 4-bit 模型，固定 revision、显示体积与内存建议，一键下载并校验 |
 | 翻译个体适应 | 🚧 计划中 | 基于用户主动确认的术语、译名、纠错与风格偏好进行本地适配，可查看、编辑和清除 |
 
 ### 现在能做什么
@@ -76,6 +77,7 @@ Qiu 起源于一次没有网络的飞行。
 - 本地语言包发现、校验、包身份确认与原子安装
 - 在高级模型管理中查看包信息、导入、切换、预加载、卸载和移除用户模型
 - 在 Apple Silicon 上添加本地 MLX 模型目录，按方向切换高质量翻译，并查看权重大小、上下文长度与预估内存
+- 从 Qiu 的 MLX 模型目录选择轻量、平衡或高质量档，一键下载后离线使用
 - 不上传选中文字，不记录翻译历史
 
 ### 下载与使用
@@ -90,6 +92,8 @@ Qiu 起源于一次没有网络的飞行。
 5. 默认按住 `Control + Option`，划选文字并松开鼠标。
 
 触发键可以在设置中更换，支持普通键、Command / Control / Option / Shift 组合，以及系统能够识别的鼠标按键。
+
+Apple Silicon 用户可在“设置 → MLX 大模型目录”查看 Qiu 审核的模型。下载完成后，在“翻译模型”中为英文→中文或中文→英文选择对应 MLX 模型。高级用户也可以在“高级模型管理”中直接添加自己的标准 MLX / SafeTensors 模型目录。
 
 ### 性能与内存
 
@@ -143,7 +147,7 @@ Control / Option / custom trigger
 - Qiu 不保存翻译历史。
 - 当前模型随 App 或本地语言包提供。
 - 用户添加的 MLX 模型只在本机读取；Qiu 保存目录访问权限，不复制、上传或删除原模型文件。
-- Qiu 只会在用户主动查看目录或下载语言包时联网；该流量只包含目录与模型文件，不包含待翻译文本。
+- Qiu 只会在用户主动查看目录、下载语言包或 MLX 模型时联网；该流量只包含目录与模型文件，不包含待翻译文本。
 - 未来的个体适应功能只记录用户主动确认的术语与偏好，不把完整翻译历史作为训练数据；适配数据保留在本机并可随时查看、编辑、导出或清除。
 
 Qiu 需要辅助功能和输入监控权限来识别全局触发及读取其他 App 中的选区。这些权限不会改变“翻译在本机完成”的原则。
@@ -163,6 +167,7 @@ Qiu 需要辅助功能和输入监控权限来识别全局触发及读取其他 
 - [x] 高级模型管理：查看详情、导入、加载、卸载和移除本地模型
 - [x] 自定义 CTranslate2 / Qiu Language Pack 目录导入
 - [x] Apple Silicon 可选 MLX 本地大模型翻译后端
+- [x] Qiu 审核的 MLX 模型目录、固定版本下载、进度、重试与安全卸载
 - [ ] 本地翻译个体适应：术语表、固定译名、领域风格与用户纠错学习
 - [ ] Intel / Apple Silicon Universal 发布包
 - [ ] 更完整的 Safari、Chrome、PDF 与编辑器兼容性矩阵
@@ -226,6 +231,7 @@ I wanted something smaller and more direct: hold a trigger, select text, release
 | Broader automatic language detection | 🚧 Planned | Extend beyond the current English/Chinese decision |
 | Custom model deployment | ✅ Available | Import Qiu language packs or reference local MLX / SafeTensors model directories |
 | Local MLX LLM backend | ✅ Available | Apple Silicon only; per-direction selection, lazy/preloading, unloading, and persistent preferences |
+| Curated MLX model downloads | ✅ Available | Three 4-bit tiers with pinned revisions, size/memory guidance, one-click download, and validation |
 | Personalized translation adaptation | 🚧 Planned | Locally adapt to user-confirmed terminology, preferred names, corrections, and style; inspectable, editable, and removable |
 
 ### What it does today
@@ -244,6 +250,7 @@ I wanted something smaller and more direct: hold a trigger, select text, release
 - Local language-pack discovery, identity checks, and atomic installation
 - Advanced model inspection, local import, selection, preloading, unloading, and removal
 - Optional Apple MLX local-LLM translation with model size, context length, and memory estimates
+- Curated lightweight, balanced, and high-quality MLX tiers with one-click local installation
 - No uploaded selections and no translation history
 
 ### Download and use
@@ -258,6 +265,8 @@ I wanted something smaller and more direct: hold a trigger, select text, release
 5. Hold `Control + Option` by default, select text, and release the mouse.
 
 The trigger is configurable and can include a regular key, Command / Control / Option / Shift, or a mouse button recognized by macOS.
+
+On Apple Silicon, open **Settings → MLX Model Catalogue** to choose a curated model. After installation, select it for EN→ZH or ZH→EN under **Translation Models**. Advanced users can still add any compatible local MLX / SafeTensors directory from Advanced Model Management.
 
 ### Performance and memory
 
@@ -311,7 +320,7 @@ Control / Option / custom trigger
 - Qiu does not save translation history.
 - Models are bundled with the app or installed as local language packs.
 - Qiu stores access to a user-added MLX directory but does not copy, upload, modify, or delete the original model files.
-- Qiu connects only when the user explicitly opens the catalogue or downloads a language pack. That traffic contains catalogue and model files, never translation input.
+- Qiu connects only when the user explicitly opens a catalogue or downloads a language pack or MLX model. That traffic contains catalogue and model files, never translation input.
 - Future personalization will store only preferences and terminology explicitly confirmed by the user, not complete translation history as training data. Adaptation data will remain local and can be inspected, edited, exported, or cleared.
 
 Qiu needs Accessibility and Input Monitoring to recognize the global trigger and read selections from other apps. Those permissions do not change the local-only inference design.
@@ -331,6 +340,7 @@ Qiu needs Accessibility and Input Monitoring to recognize the global trigger and
 - [x] Advanced model management: inspect details, import, load, unload, and remove local models
 - [x] Custom CTranslate2 / Qiu Language Pack directory import
 - [x] Optional Apple MLX local-LLM translation backend
+- [x] Curated MLX catalogue with pinned downloads, progress, retry, validation, and safe uninstall
 - [ ] On-device personalization for terminology, preferred names, domain style, and user-confirmed corrections
 - [ ] Universal Intel / Apple Silicon release
 - [ ] Broader Safari, Chrome, PDF, and editor compatibility matrix
