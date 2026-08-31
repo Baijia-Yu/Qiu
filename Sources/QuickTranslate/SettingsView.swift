@@ -33,8 +33,17 @@ struct SettingsView: View {
             }
 
             Section("翻译模型") {
+                backendPicker(title: "英文 → 中文", source: .english, target: .chinese)
+                backendPicker(title: "中文 → 英文", source: .chinese, target: .english)
+
+                Text("轻量模式省电且响应快；MLX 模式适合论文和复杂文本，仅支持 Apple Silicon，并会占用更多内存。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                DisclosureGroup("轻量语言包选择") {
                 modelPicker(title: "英文 → 中文", source: .english, target: .chinese)
                 modelPicker(title: "中文 → 英文", source: .chinese, target: .english)
+                }
 
                 HStack {
                     Button {
@@ -125,6 +134,39 @@ struct SettingsView: View {
             installShortcutMonitor()
         }
         .onDisappear { removeShortcutMonitor() }
+    }
+
+    @ViewBuilder
+    private func backendPicker(title: String, source: Language, target: Language) -> some View {
+        LabeledContent(title) {
+            Picker(
+                "",
+                selection: Binding(
+                    get: {
+                        let identity = appState.selectedMLXModelIdentity(from: source, to: target)
+                        return identity.isEmpty ? "light" : "mlx:\(identity)"
+                    },
+                    set: { selection in
+                        if selection == "light" {
+                            appState.useLightweightBackend(from: source, to: target)
+                        } else if selection.hasPrefix("mlx:") {
+                            appState.selectMLXModel(
+                                String(selection.dropFirst(4)),
+                                from: source,
+                                to: target
+                            )
+                        }
+                    }
+                )
+            ) {
+                Text("轻量 OPUS-MT（推荐）").tag("light")
+                ForEach(appState.mlxModels) { model in
+                    Text("MLX · \(model.displayName) · 高质量").tag("mlx:\(model.id)")
+                }
+            }
+            .labelsHidden()
+            .frame(width: 300)
+        }
     }
 
     private var recordingLabel: String {

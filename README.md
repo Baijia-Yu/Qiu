@@ -38,6 +38,7 @@ Qiu 起源于一次没有网络的飞行。
 - **自定义触发划词**：可以录制普通按键、Command / Control / Option / Shift 组合，也支持系统能够识别的鼠标侧键或宏按键。按住触发、拖动选择文字、松开鼠标即可翻译。
 - **自动判断中英方向**：当前版本会用几乎零开销的 Unicode 规则识别中文与英文，并自动选择 `zh → en` 或 `en → zh` 模型。
 - **为翻译而生的小模型**：使用专用 OPUS-MT INT8 模型，不需要为了翻译一句话加载通用大模型。
+- **可选 MLX 高质量模式**：Apple Silicon 用户可以添加标准 MLX 模型目录，按翻译方向切换到本地大模型；默认轻量模式不受影响。
 - **模型按需加载**：只加载当前方向需要的语言包，warm 时复用，空闲时可以卸载。
 - **按需获取官方语言包**：只在用户主动打开目录后联网，可从 Qiu 官方 GitHub Release 下载需要的模型；安装前校验文件大小、SHA-256、包身份与内部清单。
 - **可扩展语言包架构**：Qiu 已能发现、验证、选择版本并路由本地语言包，为更多模型部署保留统一接口。
@@ -55,7 +56,8 @@ Qiu 起源于一次没有网络的飞行。
 | Qiu 官方语言包下载 | ✅ 已完成 | 手动读取官方目录，按需下载并校验 SHA-256 后安装 |
 | 高级模型管理 | ✅ 已完成 | 查看详情、导入、设为当前模型、预加载、卸载与移除用户语言包 |
 | 更多语言自动识别 | 🚧 计划中 | 从中英判断扩展到多语言识别 |
-| 自定义模型部署 | 🧪 部分完成 | 可导入兼容 Qiu 语言包文件或目录；本地大模型后端仍在计划中 |
+| 自定义模型部署 | ✅ 已完成 | 可导入 Qiu 语言包，也可引用本地 MLX / SafeTensors 模型目录 |
+| MLX 本地大模型后端 | ✅ 已完成 | Apple Silicon 可用，按方向选择、懒加载、预加载、卸载且重启后保留 |
 | 翻译个体适应 | 🚧 计划中 | 基于用户主动确认的术语、译名、纠错与风格偏好进行本地适配，可查看、编辑和清除 |
 
 ### 现在能做什么
@@ -73,6 +75,7 @@ Qiu 起源于一次没有网络的飞行。
 - 在设置中按需查看、下载并安装 Qiu 官方语言包
 - 本地语言包发现、校验、包身份确认与原子安装
 - 在高级模型管理中查看包信息、导入、切换、预加载、卸载和移除用户模型
+- 在 Apple Silicon 上添加本地 MLX 模型目录，按方向切换高质量翻译，并查看权重大小、上下文长度与预估内存
 - 不上传选中文字，不记录翻译历史
 
 ### 下载与使用
@@ -124,9 +127,13 @@ Control / Option / custom trigger
                 ↓
      Swift TranslationEngine protocol
                 ↓
- Objective-C++ → SentencePiece → CTranslate2
-                ↓
-          OPUS-MT INT8 model
+       ┌────────┴────────┐
+       ↓                 ↓
+ Objective-C++        Apple MLX
+ SentencePiece        local LLM
+ CTranslate2          SafeTensors
+       ↓                 ↓
+ OPUS-MT INT8      high-quality mode
 ```
 
 ### 隐私
@@ -135,6 +142,7 @@ Control / Option / custom trigger
 - 选中文字不会发送给云端翻译服务。
 - Qiu 不保存翻译历史。
 - 当前模型随 App 或本地语言包提供。
+- 用户添加的 MLX 模型只在本机读取；Qiu 保存目录访问权限，不复制、上传或删除原模型文件。
 - Qiu 只会在用户主动查看目录或下载语言包时联网；该流量只包含目录与模型文件，不包含待翻译文本。
 - 未来的个体适应功能只记录用户主动确认的术语与偏好，不把完整翻译历史作为训练数据；适配数据保留在本机并可随时查看、编辑、导出或清除。
 
@@ -154,14 +162,14 @@ Qiu 需要辅助功能和输入监控权限来识别全局触发及读取其他 
 - [ ] 更多语言对与轻量自动语言识别
 - [x] 高级模型管理：查看详情、导入、加载、卸载和移除本地模型
 - [x] 自定义 CTranslate2 / Qiu Language Pack 目录导入
-- [ ] 可选的本地大模型翻译后端
+- [x] Apple Silicon 可选 MLX 本地大模型翻译后端
 - [ ] 本地翻译个体适应：术语表、固定译名、领域风格与用户纠错学习
 - [ ] Intel / Apple Silicon Universal 发布包
 - [ ] 更完整的 Safari、Chrome、PDF 与编辑器兼容性矩阵
 
 ### 从源码构建
 
-需要 macOS 15+、Xcode Command Line Tools、CMake、Python 3 和 SentencePiece：
+需要 macOS 15+、Xcode Command Line Tools、CMake、Python 3 和 SentencePiece。打包 Apple Silicon App 时，脚本还会下载固定版本并校验过的 MLX Metal 内核：
 
 ```bash
 brew install cmake sentencepiece
@@ -193,13 +201,12 @@ I wanted to read a paper on the plane, but the translation tools I normally used
 
 I wanted something smaller and more direct: hold a trigger, select text, release the mouse, and see the translation beside the cursor. No cloud request, no history database, and no need to wake a general-purpose model for a tiny task.
 
-That became Qiu: **offline translation that feels like a system capability while staying considerate of battery, memory, and attention.**
-
 ### What makes Qiu different
 
 - **A custom hold-and-select trigger**: record a regular key, any Command / Control / Option / Shift combination, or a mouse side/macro button recognized by macOS. Hold it, drag to select text, and release the mouse to translate.
 - **Automatic English/Chinese direction detection**: a near-zero-cost Unicode heuristic selects `zh → en` or `en → zh` without loading a separate detection model.
 - **Small models built for translation**: dedicated OPUS-MT INT8 models avoid waking a general-purpose LLM for a sentence.
+- **Optional high-quality MLX mode**: Apple Silicon users can add a standard local MLX model directory and select it per translation direction without changing the lightweight default.
 - **On-demand model loading**: Qiu loads only the language pack required for the current direction, reuses it while warm, and can unload it when idle.
 - **On-demand curated language packs**: Qiu connects only after the user opens the catalogue, downloads models from the official GitHub Release, and verifies size, SHA-256, package identity, and manifest before installation.
 - **An extensible language-pack architecture**: package discovery, validation, version resolution, and direction-based routing are in place for additional model deployment.
@@ -217,7 +224,8 @@ That became Qiu: **offline translation that feels like a system capability while
 | Curated Qiu language-pack downloads | ✅ Available | Manually fetch the catalogue, download on demand, verify SHA-256, and install |
 | Advanced model management | ✅ Available | Inspect details, import, select, preload, unload, and remove user-installed packs |
 | Broader automatic language detection | 🚧 Planned | Extend beyond the current English/Chinese decision |
-| Custom model deployment | 🧪 Partial | Compatible Qiu package files and directories can be imported; a local LLM backend remains planned |
+| Custom model deployment | ✅ Available | Import Qiu language packs or reference local MLX / SafeTensors model directories |
+| Local MLX LLM backend | ✅ Available | Apple Silicon only; per-direction selection, lazy/preloading, unloading, and persistent preferences |
 | Personalized translation adaptation | 🚧 Planned | Locally adapt to user-confirmed terminology, preferred names, corrections, and style; inspectable, editable, and removable |
 
 ### What it does today
@@ -235,6 +243,7 @@ That became Qiu: **offline translation that feels like a system capability while
 - On-demand discovery, download, verification, and installation of curated Qiu language packs
 - Local language-pack discovery, identity checks, and atomic installation
 - Advanced model inspection, local import, selection, preloading, unloading, and removal
+- Optional Apple MLX local-LLM translation with model size, context length, and memory estimates
 - No uploaded selections and no translation history
 
 ### Download and use
@@ -286,9 +295,13 @@ Control / Option / custom trigger
                 ↓
      Swift TranslationEngine protocol
                 ↓
- Objective-C++ → SentencePiece → CTranslate2
-                ↓
-          OPUS-MT INT8 model
+       ┌────────┴────────┐
+       ↓                 ↓
+ Objective-C++        Apple MLX
+ SentencePiece        local LLM
+ CTranslate2          SafeTensors
+       ↓                 ↓
+ OPUS-MT INT8      high-quality mode
 ```
 
 ### Privacy
@@ -297,6 +310,7 @@ Control / Option / custom trigger
 - Selected text is not sent to a cloud translation service.
 - Qiu does not save translation history.
 - Models are bundled with the app or installed as local language packs.
+- Qiu stores access to a user-added MLX directory but does not copy, upload, modify, or delete the original model files.
 - Qiu connects only when the user explicitly opens the catalogue or downloads a language pack. That traffic contains catalogue and model files, never translation input.
 - Future personalization will store only preferences and terminology explicitly confirmed by the user, not complete translation history as training data. Adaptation data will remain local and can be inspected, edited, exported, or cleared.
 
@@ -316,14 +330,14 @@ Qiu needs Accessibility and Input Monitoring to recognize the global trigger and
 - [ ] More language pairs and lightweight automatic language detection
 - [x] Advanced model management: inspect details, import, load, unload, and remove local models
 - [x] Custom CTranslate2 / Qiu Language Pack directory import
-- [ ] Optional local LLM translation backend
+- [x] Optional Apple MLX local-LLM translation backend
 - [ ] On-device personalization for terminology, preferred names, domain style, and user-confirmed corrections
 - [ ] Universal Intel / Apple Silicon release
 - [ ] Broader Safari, Chrome, PDF, and editor compatibility matrix
 
 ### Build from source
 
-Source builds require macOS 15+, Xcode Command Line Tools, CMake, Python 3, and SentencePiece:
+Source builds require macOS 15+, Xcode Command Line Tools, CMake, Python 3, and SentencePiece. When packaging for Apple Silicon, the script also downloads a pinned, checksum-verified MLX Metal kernel library:
 
 ```bash
 brew install cmake sentencepiece

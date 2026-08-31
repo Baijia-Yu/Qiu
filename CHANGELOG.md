@@ -6,6 +6,11 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added
 
+- Added an in-process Apple MLX local-LLM backend for Apple Silicon, with strict translation prompts and no conversation history.
+- Added local MLX model-directory validation for `config.json`, tokenizer metadata, and SafeTensors weights.
+- Added per-direction MLX backend selection, lazy loading, explicit preload/unload, persistent access, memory estimates, and safe reference removal that never deletes source model files.
+- Added a pinned, checksum-verified MLX Metal runtime preparation step for packaged apps.
+- Added structural MLX model tests and an opt-in real-model inference test.
 - Added per-direction selection of installed language packs in Settings, with persistent preferences, automatic newest-version fallback, and model-list refresh.
 - Added a user-initiated Qiu language-pack catalogue backed by official GitHub Release assets.
 - Added on-demand model download with HTTPS response validation, exact-size and SHA-256 verification, package-identity checks, and atomic installation.

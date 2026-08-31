@@ -423,3 +423,71 @@ private func runDitto(arguments: [String]) throws {
     #expect(!translation.contains("⁇"), "Unexpected output: \(translation)")
     await engine.unload()
 }
+
+@Test func validatesAndPersistsAnMLXModelReference() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("QiuMLXModelTests-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try Data(#"{"model_type":"qwen2","max_position_embeddings":32768}"#.utf8)
+        .write(to: root.appendingPathComponent("config.json"))
+    try Data("{}".utf8).write(to: root.appendingPathComponent("tokenizer.json"))
+    try Data(repeating: 0, count: 1_024).write(to: root.appendingPathComponent("model.safetensors"))
+
+    let model = try MLXModelReferenceStore.validateAndCreate(at: root)
+    #expect(model.displayName == root.lastPathComponent)
+    #expect(model.modelType == "qwen2")
+    #expect(model.contextLength == 32_768)
+    #expect(model.weightsBytes == 1_024)
+
+    let suite = "QiuMLXModelPreferencesTests-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    MLXModelReferenceStore.saveModels([model], to: defaults)
+    MLXModelReferenceStore.saveSelections(["en->zh": model.id], to: defaults)
+    #expect(MLXModelReferenceStore.loadModels(from: defaults) == [model])
+    #expect(MLXModelReferenceStore.loadSelections(from: defaults) == ["en->zh": model.id])
+}
+
+@Test func rejectsIncompleteMLXModelDirectories() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("QiuInvalidMLXModelTests-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    #expect(throws: MLXModelValidationError.missingConfig) {
+        try MLXModelReferenceStore.validateAndCreate(at: root)
+    }
+    try Data("{}".utf8).write(to: root.appendingPathComponent("config.json"))
+    #expect(throws: MLXModelValidationError.missingTokenizer) {
+        try MLXModelReferenceStore.validateAndCreate(at: root)
+    }
+    try Data("{}".utf8).write(to: root.appendingPathComponent("tokenizer_config.json"))
+    #expect(throws: MLXModelValidationError.missingWeights) {
+        try MLXModelReferenceStore.validateAndCreate(at: root)
+    }
+}
+
+#if arch(arm64)
+@Test func cleansCommonMLXTranslationWrappers() {
+    let cleaned = MLXTranslationEngine.clean("<think>internal</think>\n译文：强化学习")
+    #expect(cleaned == "强化学习")
+}
+
+@Test func translatesWithARealMLXModelWhenConfigured() async throws {
+    guard let path = ProcessInfo.processInfo.environment["QIU_MLX_TEST_MODEL"] else { return }
+    let model = try MLXModelReferenceStore.validateAndCreate(
+        at: URL(fileURLWithPath: path, isDirectory: true)
+    )
+    let engine = MLXTranslationEngine()
+    let translation = try await engine.translate(
+        "Reinforcement learning improves decision making.",
+        from: .english,
+        to: .chinese,
+        using: model
+    )
+    #expect(!translation.isEmpty)
+    #expect(translation.unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) })
+    await engine.unload()
+}
+#endif

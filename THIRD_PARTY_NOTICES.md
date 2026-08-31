@@ -7,6 +7,10 @@ Qiu depends on third-party software and model data. This file is a summary; the 
 | CTranslate2 | Native translation runtime | MIT | https://github.com/OpenNMT/CTranslate2 |
 | SentencePiece | Tokenization | Apache-2.0 | https://github.com/google/sentencepiece |
 | Ruy | INT8 matrix multiplication | Apache-2.0 | https://github.com/google/ruy |
+| MLX Swift | Optional Apple Silicon tensor runtime | MIT | https://github.com/ml-explore/mlx-swift |
+| MLX Swift LM | Optional local LLM inference | MIT | https://github.com/ml-explore/mlx-swift-lm |
+| Swift Transformers | Local model tokenization | Apache-2.0 | https://github.com/huggingface/swift-transformers |
+| Swift Hugging Face | Local model loading support | Apache-2.0 | https://github.com/huggingface/swift-huggingface |
 | cpuinfo | CPU feature detection through Ruy | BSD-2-Clause | https://github.com/pytorch/cpuinfo |
 | clog | Logging dependency through cpuinfo | BSD-2-Clause | https://github.com/pytorch/cpuinfo/tree/master/deps/clog |
 | Helsinki-NLP OPUS-MT English → Chinese | Model data | Apache-2.0 | https://huggingface.co/Helsinki-NLP/opus-mt-en-zh |

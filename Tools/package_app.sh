@@ -15,6 +15,10 @@ if [[ ! -f "$project_root/.native-build/libquicktranslate-native.a" ]]; then
   "$project_root/Tools/build_native.sh"
 fi
 
+if [[ "$(uname -m)" == "arm64" && ! -f "$project_root/.native-build/mlx.metallib" ]]; then
+  "$project_root/Tools/prepare_mlx_runtime.sh"
+fi
+
 for package_id in opus-mt-en-zh-int8 opus-mt-zh-en-int8; do
   if [[ ! -f "$project_root/Models/LanguagePacks/$package_id/1.0.0/ct2/model/model.bin" ]]; then
     echo "Language pack assets are missing. Run: ./Tools/prepare_models.sh" >&2
@@ -27,6 +31,9 @@ rm -rf "$app_path"
 mkdir -p "$app_path/Contents/MacOS" "$resources/LanguagePacks"
 cp "$project_root/Distribution/Info.plist" "$app_path/Contents/Info.plist"
 cp "$project_root/.build/release/QuickTranslate" "$app_path/Contents/MacOS/QuickTranslate"
+if [[ -f "$project_root/.native-build/mlx.metallib" ]]; then
+  cp "$project_root/.native-build/mlx.metallib" "$app_path/Contents/MacOS/mlx.metallib"
+fi
 mkdir -p "$iconset_path"
 sips -z 16 16 "$icon_source" --out "$iconset_path/icon_16x16.png" >/dev/null
 sips -z 32 32 "$icon_source" --out "$iconset_path/icon_16x16@2x.png" >/dev/null
@@ -45,8 +52,18 @@ for package_id in opus-mt-en-zh-int8 opus-mt-zh-en-int8; do
 done
 
 if [[ "$signing_identity" == "-" ]]; then
+  if [[ -f "$app_path/Contents/MacOS/mlx.metallib" ]]; then
+    codesign --force --sign - "$app_path/Contents/MacOS/mlx.metallib"
+  fi
   codesign --force --sign - "$app_path"
 else
+  if [[ -f "$app_path/Contents/MacOS/mlx.metallib" ]]; then
+    codesign \
+      --force \
+      --timestamp \
+      --sign "$signing_identity" \
+      "$app_path/Contents/MacOS/mlx.metallib"
+  fi
   codesign \
     --force \
     --options runtime \

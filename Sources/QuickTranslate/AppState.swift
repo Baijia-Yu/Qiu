@@ -57,6 +57,9 @@ final class AppState: NSObject, ObservableObject {
     @Published private(set) var modelCatalogMessage: String?
     @Published private(set) var modelCatalogError: String?
     @Published private(set) var loadedPackageIdentities: Set<String> = []
+    @Published private(set) var mlxModels: [MLXModelReference] = []
+    @Published private(set) var selectedMLXModelIdentities: [String: String] = [:]
+    @Published private(set) var loadedMLXModelIdentities: Set<String> = []
     @Published private(set) var modelManagementOperation: String?
     @Published private(set) var modelManagementMessage: String?
     @Published private(set) var modelManagementError: String?
@@ -68,12 +71,15 @@ final class AppState: NSObject, ObservableObject {
     }
     private let packStore: LanguagePackStore
     private let translator: LocalTranslationEngine
+    private let mlxTranslator = MLXTranslationEngine()
     private let modelCatalogClient: OfficialModelCatalogClient
     private let languagePackInstaller: LanguagePackInstaller
 
     override init() {
         let packStore = LanguagePackStore()
         let selectedPackages = LanguagePackPreferences.load()
+        let mlxModels = MLXModelReferenceStore.loadModels()
+        let mlxSelections = MLXModelReferenceStore.loadSelections()
         self.packStore = packStore
         self.translator = LocalTranslationEngine(
             packStore: packStore,
@@ -82,6 +88,10 @@ final class AppState: NSObject, ObservableObject {
         self.modelCatalogClient = OfficialModelCatalogClient()
         self.languagePackInstaller = LanguagePackInstaller(store: packStore)
         selectedPackageIdentities = selectedPackages
+        self.mlxModels = mlxModels
+        selectedMLXModelIdentities = mlxSelections.filter { selection in
+            mlxModels.contains { $0.id == selection.value }
+        }
         if let data = UserDefaults.standard.data(forKey: Self.shortcutDefaultsKey),
            let stored = try? JSONDecoder().decode(TriggerShortcut.self, from: data) {
             triggerShortcut = stored
@@ -178,12 +188,120 @@ final class AppState: NSObject, ObservableObject {
         } else {
             selectedPackageIdentities[key] = identity
         }
+        selectedMLXModelIdentities.removeValue(forKey: key)
+        MLXModelReferenceStore.saveSelections(selectedMLXModelIdentities)
         LanguagePackPreferences.save(selectedPackageIdentities)
         let selections = selectedPackageIdentities
         Task {
             await translator.updatePreferredPackages(selections)
             loadedPackageIdentities = await translator.loadedPackages()
         }
+    }
+
+    func selectedMLXModelIdentity(from source: Language, to target: Language) -> String {
+        selectedMLXModelIdentities[
+            LanguagePackPreferences.pairKey(
+                sourceLanguage: source.rawValue,
+                targetLanguage: target.rawValue
+            )
+        ] ?? ""
+    }
+
+    func selectMLXModel(_ identity: String, from source: Language, to target: Language) {
+        guard mlxModels.contains(where: { $0.id == identity }) else { return }
+        let key = LanguagePackPreferences.pairKey(
+            sourceLanguage: source.rawValue,
+            targetLanguage: target.rawValue
+        )
+        selectedMLXModelIdentities[key] = identity
+        MLXModelReferenceStore.saveSelections(selectedMLXModelIdentities)
+        modelManagementError = nil
+        modelManagementMessage = "已将 MLX 模型设为 \(source.rawValue.uppercased()) → \(target.rawValue.uppercased()) 的翻译后端。"
+    }
+
+    func useLightweightBackend(from source: Language, to target: Language) {
+        let key = LanguagePackPreferences.pairKey(
+            sourceLanguage: source.rawValue,
+            targetLanguage: target.rawValue
+        )
+        selectedMLXModelIdentities.removeValue(forKey: key)
+        MLXModelReferenceStore.saveSelections(selectedMLXModelIdentities)
+    }
+
+    func addMLXModel(from directory: URL) {
+        guard modelManagementOperation == nil else { return }
+        modelManagementOperation = "add-mlx"
+        modelManagementMessage = nil
+        modelManagementError = nil
+        let accessed = directory.startAccessingSecurityScopedResource()
+        defer {
+            if accessed { directory.stopAccessingSecurityScopedResource() }
+            modelManagementOperation = nil
+        }
+        do {
+            let model = try MLXModelReferenceStore.validateAndCreate(at: directory)
+            if mlxModels.contains(where: { $0.lastKnownPath == model.lastKnownPath }) {
+                modelManagementError = "这个 MLX 模型目录已经添加。"
+                return
+            }
+            mlxModels.append(model)
+            MLXModelReferenceStore.saveModels(mlxModels)
+            modelManagementMessage = "已添加 \(model.displayName)。模型将在首次使用时加载。"
+        } catch {
+            modelManagementError = error.localizedDescription
+        }
+    }
+
+    func loadMLXModel(_ model: MLXModelReference) {
+        guard modelManagementOperation == nil else { return }
+        modelManagementOperation = "mlx:\(model.id)"
+        modelManagementMessage = nil
+        modelManagementError = nil
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                _ = try await mlxTranslator.load(model)
+                loadedMLXModelIdentities = await mlxTranslator.loadedModels()
+                modelManagementMessage = "已将 \(model.displayName) 加载到内存。"
+            } catch {
+                modelManagementError = error.localizedDescription
+            }
+            modelManagementOperation = nil
+        }
+    }
+
+    func unloadMLXModel(_ model: MLXModelReference) {
+        guard modelManagementOperation == nil else { return }
+        modelManagementOperation = "mlx:\(model.id)"
+        Task { [weak self] in
+            guard let self else { return }
+            await mlxTranslator.unload(model.id)
+            loadedMLXModelIdentities = await mlxTranslator.loadedModels()
+            modelManagementMessage = "已从内存卸载 \(model.displayName)。"
+            modelManagementError = nil
+            modelManagementOperation = nil
+        }
+    }
+
+    func removeMLXModel(_ model: MLXModelReference) {
+        guard modelManagementOperation == nil else { return }
+        modelManagementOperation = "mlx:\(model.id)"
+        Task { [weak self] in
+            guard let self else { return }
+            await mlxTranslator.unload(model.id)
+            mlxModels.removeAll { $0.id == model.id }
+            selectedMLXModelIdentities = selectedMLXModelIdentities.filter { $0.value != model.id }
+            MLXModelReferenceStore.saveModels(mlxModels)
+            MLXModelReferenceStore.saveSelections(selectedMLXModelIdentities)
+            loadedMLXModelIdentities = await mlxTranslator.loadedModels()
+            modelManagementMessage = "已移除 \(model.displayName) 的引用，原模型文件未删除。"
+            modelManagementError = nil
+            modelManagementOperation = nil
+        }
+    }
+
+    func isMLXModelSelected(_ model: MLXModelReference) -> Bool {
+        selectedMLXModelIdentities.values.contains(model.id)
     }
 
     func reloadLanguagePacks() {
@@ -270,7 +388,9 @@ final class AppState: NSObject, ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             await translator.unload()
+            await mlxTranslator.unload()
             loadedPackageIdentities = []
+            loadedMLXModelIdentities = []
             modelManagementMessage = "已卸载全部模型。"
             modelManagementError = nil
             modelManagementOperation = nil
@@ -409,7 +529,18 @@ final class AppState: NSObject, ObservableObject {
                 }
                 let direction = LanguageDetector.direction(for: source)
                 do {
-                    let translation = try await self.translator.translate(source, from: direction.source, to: direction.target)
+                    let translation: String
+                    if let model = self.selectedMLXModel(from: direction.source, to: direction.target) {
+                        translation = try await self.mlxTranslator.translate(
+                            source,
+                            from: direction.source,
+                            to: direction.target,
+                            using: model
+                        )
+                        self.loadedMLXModelIdentities = await self.mlxTranslator.loadedModels()
+                    } else {
+                        translation = try await self.translator.translate(source, from: direction.source, to: direction.target)
+                    }
                     self.loadedPackageIdentities = await self.translator.loadedPackages()
                     metrics.mark("T_translation")
                     self.popup.show(
@@ -425,5 +556,10 @@ final class AppState: NSObject, ObservableObject {
                 }
             }
         }
+    }
+
+    private func selectedMLXModel(from source: Language, to target: Language) -> MLXModelReference? {
+        let identity = selectedMLXModelIdentity(from: source, to: target)
+        return mlxModels.first { $0.id == identity }
     }
 }
